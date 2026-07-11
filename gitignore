@@ -1,0 +1,8 @@
+./best_lstm_model.keras
+./generate_dataset.py
+./predict.py
+./lstm_model.keras
+./requirements.txt
+./scaler_paramas.npx
+./synthetic_drillrig_data.csv
+./train_lstm.py   
