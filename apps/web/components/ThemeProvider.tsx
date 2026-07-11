@@ -25,6 +25,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const root = document.documentElement
     root.dataset.theme = theme
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
     window.localStorage.setItem('pfmi-theme', theme)
   }, [theme])
 

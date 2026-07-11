@@ -1,76 +1,90 @@
-import styles from "./Footer.module.css";
+"use client";
 
-const links = {
-  Product: ["Features", "Dashboard", "How It Works", "Pricing"],
-  Resources: ["Documentation", "API Reference", "Status", "Changelog"],
-  Company: ["About", "Blog", "Careers", "Contact"],
-};
+import Link from "next/link";
+import { Cpu } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className={styles.footer}>
-      <div className={styles.topLine} />
-      <div className={styles.container}>
-        <div className={styles.top}>
-          {/* Brand */}
-          <div className={styles.brand}>
-            <div className={styles.logo}>
-              <span className={styles.logoMark}>⚡</span>
-              <span className={styles.logoText}>PFMI</span>
+    <footer className="border-t border-border-mute bg-surface py-12 mt-auto no-print">
+      <div className="mx-auto max-w-7xl px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
+        {/* Column 1: Brand */}
+        <div className="col-span-2 md:col-span-1 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 flex items-center justify-center rounded bg-foreground text-background border border-zinc-200 dark:border-zinc-800">
+              <Cpu className="h-3.5 w-3.5" />
             </div>
-            <p className={styles.tagline}>
-              Hybrid Preventive Maintenance Intelligence.
-              <br />
-              Predict. Prevent. Perform.
-            </p>
-            <div className={styles.socials}>
-              {/* GitHub */}
-              <a href="https://github.com" aria-label="GitHub" className={styles.social}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
-                </svg>
-              </a>
-              {/* Twitter/X */}
-              <a href="https://x.com" aria-label="Twitter" className={styles.social}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                </svg>
-              </a>
-              {/* LinkedIn */}
-              <a href="https://linkedin.com" aria-label="LinkedIn" className={styles.social}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                </svg>
-              </a>
-            </div>
+            <span className="font-sans font-bold tracking-tight text-foreground text-sm">
+              PFMI<span className="text-zinc-400 font-normal">.ai</span>
+            </span>
           </div>
-
-          {/* Links */}
-          {Object.entries(links).map(([category, items]) => (
-            <div key={category} className={styles.linkGroup}>
-              <h4 className={styles.linkGroupTitle}>{category}</h4>
-              <ul className={styles.linkList}>
-                {items.map((item) => (
-                  <li key={item}>
-                    <a href="#" className={styles.footerLink}>{item}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom bar */}
-        <div className={styles.bottom}>
-          <p className={styles.copyright}>
-            © {new Date().getFullYear()} PFMI · Built with ❤️ for Build Weekend 1.0
+          <p className="text-[11px] text-text-muted leading-relaxed max-w-xs">
+            Hybrid Preventive Maintenance Intelligence. Connect sensor streams, ingest logs via OCR, and forecast remaining useful component life.
           </p>
-          <div className={styles.bottomLinks}>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Cookie Policy</a>
-          </div>
         </div>
+
+        {/* Column 2: Platform */}
+        <div className="col-span-1">
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-foreground font-mono mb-3">
+            Platform
+          </h4>
+          <ul className="space-y-2 text-[11px] text-text-muted">
+            <li>
+              <Link href="/#features" className="hover:text-foreground transition-colors">Features</Link>
+            </li>
+            <li>
+              <Link href="/#how-it-works" className="hover:text-foreground transition-colors">Protocol</Link>
+            </li>
+            <li>
+              <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link>
+            </li>
+          </ul>
+        </div>
+
+        {/* Column 3: Resources */}
+        <div className="col-span-1">
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-foreground font-mono mb-3">
+            Resources
+          </h4>
+          <ul className="space-y-2 text-[11px] text-text-muted">
+            <li>
+              <Link href="/ocr-upload" className="hover:text-foreground transition-colors">OCR Ingestion</Link>
+            </li>
+            <li>
+              <a href="#" className="hover:text-foreground transition-colors">API Docs</a>
+            </li>
+            <li>
+              <a href="#" className="hover:text-foreground transition-colors">Schema Definition</a>
+            </li>
+          </ul>
+        </div>
+
+        {/* Column 4: Project Info */}
+        <div className="col-span-2 sm:col-span-1 md:col-span-1">
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-foreground font-mono mb-3">
+            Project
+          </h4>
+          <ul className="space-y-2 text-[11px] text-text-muted">
+            <li>
+              <span className="block font-medium text-foreground">Hackathon:</span>
+              <span className="text-text-muted">Build Weekend 1.0</span>
+            </li>
+            <li>
+              <span className="block font-medium text-foreground mt-1">Repository:</span>
+              <a href="https://github.com/BernardBlay/PFMI" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                github.com/PFMI
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl px-6 border-t border-border-mute pt-6 mt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+        <span className="text-[10px] text-text-muted">
+          © {new Date().getFullYear()} PFMI.ai. Structured for industrial operations.
+        </span>
+        <span className="text-[9px] text-text-muted font-mono">
+          Model v1.0.0 • Cloud
+        </span>
       </div>
     </footer>
   );

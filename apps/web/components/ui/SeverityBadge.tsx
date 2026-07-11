@@ -4,27 +4,23 @@ type Severity = Alert["severity"];
 
 const CONFIG: Record<
   Severity,
-  { bg: string; text: string; dot: string }
+  { bgClass: string; dotClass: string }
 > = {
   Critical: {
-    bg: "bg-error-container",
-    text: "text-on-error-container",
-    dot: "bg-error",
+    bgClass: "bg-red-500/10 text-red-500 border border-red-500/20",
+    dotClass: "bg-red-500",
   },
   High: {
-    bg: "bg-error-container/70",
-    text: "text-on-error-container",
-    dot: "bg-error",
+    bgClass: "bg-red-500/10 text-red-500 border border-red-500/20",
+    dotClass: "bg-red-500",
   },
   Medium: {
-    bg: "bg-tertiary-fixed",
-    text: "text-on-tertiary-fixed-variant",
-    dot: "bg-tertiary",
+    bgClass: "bg-amber-500/10 text-amber-500 border border-amber-500/20",
+    dotClass: "bg-amber-500",
   },
   Low: {
-    bg: "bg-surface-container-highest",
-    text: "text-on-surface-variant",
-    dot: "bg-outline",
+    bgClass: "bg-background border border-border-mute text-text-muted",
+    dotClass: "bg-text-muted",
   },
 };
 
@@ -37,9 +33,9 @@ export default function SeverityBadge({ severity, className = "" }: Props) {
   const c = CONFIG[severity] ?? CONFIG.Low;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold tracking-tighter uppercase ${c.bg} ${c.text} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase ${c.bgClass} ${className}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+      <span className={`w-1 h-1 rounded-full ${c.dotClass}`} />
       {severity}
     </span>
   );

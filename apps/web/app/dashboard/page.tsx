@@ -1,7 +1,8 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Link from "next/link";
+import { Cpu, AlertTriangle, ArrowUpRight, CheckCircle2, ShieldAlert, Activity } from "lucide-react";
 import { Equipment, Alert } from "@/lib/db";
 
 export default function Dashboard() {
@@ -38,7 +39,7 @@ export default function Dashboard() {
         body: JSON.stringify({ id })
       });
       if (res.ok) {
-        // Refresh alerts and equipment states
+        // Refresh states
         fetchData();
       }
     } catch (err) {
@@ -47,71 +48,155 @@ export default function Dashboard() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      <Navbar />
-      <div className="container mx-auto px-6 py-24 flex-1">
-        <h1 className="text-3xl font-bold mb-8">Maintenance Dashboard</h1>
+    <div className="space-y-8 max-w-6xl mx-auto py-6">
+      {/* Title */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border-mute pb-5 gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-foreground font-sans tracking-tight">
+            Fleet Maintenance Control
+          </h1>
+          <p className="text-xs text-text-muted mt-1 leading-none font-mono uppercase tracking-wider">
+            Industrial Node 04 Control Room
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[10px] font-bold font-mono text-emerald-650 dark:text-emerald-400 uppercase tracking-widest">
+            Telemetry Stream Active
+          </span>
+        </div>
+      </div>
+
+      {/* Alerts Grid */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2 text-red-500">
+          <ShieldAlert className="h-4.5 w-4.5" />
+          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
+            Active Alerts Priority Queue
+          </h2>
+        </div>
         
-        {/* Alerts Grid */}
-        <section className="mb-12">
-          <h2 className="text-xl font-bold mb-4 text-red-400">Active Alerts</h2>
-          {alerts.length === 0 ? (
-            <p className="text-[var(--text-secondary)]">No active alerts.</p>
-          ) : (
-            <div className="grid gap-4">
-              {alerts.map(alert => (
-                <div key={alert.id} className="p-4 rounded-lg bg-[var(--bg-card)] border border-red-500/20 flex justify-between items-center">
-                  <div>
-                    <span className="font-bold text-red-400 mr-2">[{alert.severity}]</span>
-                    <span className="font-semibold">{alert.equipmentName}</span>
-                    <p className="text-[var(--text-secondary)] text-sm mt-1">{alert.message}</p>
+        {alerts.length === 0 ? (
+          <div className="border border-border-mute bg-surface rounded-2xl p-6 flex flex-col items-center justify-center text-center text-text-muted">
+            <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
+            <span className="text-xs font-semibold text-foreground">All systems nominal</span>
+            <p className="text-[10px] text-text-muted mt-0.5">No critical deviations flagged currently.</p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {alerts.map((alert) => {
+              const isCritical = alert.severity === "Critical" || alert.severity === "High";
+              return (
+                <div 
+                  key={alert.id} 
+                  className={`p-4 rounded-xl bg-surface border transition-all duration-300 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 ${
+                    isCritical 
+                      ? "border-red-500/25 hover:border-red-500/40" 
+                      : "border-amber-500/20 hover:border-amber-500/35"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className={`h-4.5 w-4.5 shrink-0 mt-0.5 ${isCritical ? "text-red-500" : "text-amber-500"}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border uppercase ${
+                          isCritical 
+                            ? "bg-red-500/10 text-red-500 border-red-500/20" 
+                            : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                        }`}>
+                          {alert.severity}
+                        </span>
+                        <span className="font-bold text-xs text-foreground">{alert.equipmentName}</span>
+                      </div>
+                      <p className="text-[11px] text-text-muted mt-1 leading-relaxed">{alert.message}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-between sm:justify-end gap-4">
+                    <span className="text-[9px] font-mono text-text-muted">{alert.id}</span>
                     <button
                       onClick={() => resolveAlert(alert.id)}
-                      className="px-3 py-1.5 rounded text-xs font-semibold bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+                      className="px-3.5 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-widest bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
                     >
                       Resolve
                     </button>
-                    <span className="text-xs text-[var(--text-muted)]">{alert.id}</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Equipment Status Grid */}
-        <section>
-          <h2 className="text-xl font-bold mb-4">Equipment Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {equipment.map(eq => (
-              <div key={eq.id} className="p-6 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-bold text-lg">{eq.name}</h3>
-                    <p className="text-xs text-[var(--text-muted)]">{eq.id}</p>
-                  </div>
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    eq.status === "Healthy" ? "bg-green-500/10 text-green-400" :
-                    eq.status === "Warning" ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"
-                  }`}>{eq.status}</span>
-                </div>
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Health Score</span>
-                    <span className="font-bold">{eq.health_score}%</span>
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-2">
-                    <div className="h-2 rounded-full bg-blue-500" style={{ width: `${eq.health_score}%` }} />
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </section>
-      </div>
-      <Footer />
-    </main>
+        )}
+      </section>
+
+      {/* Equipment Status Grid */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Cpu className="h-4.5 w-4.5 text-text-muted" />
+          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
+            Equipment Node Diagnostics
+          </h2>
+        </div>
+        
+        {loading ? (
+          <div className="text-center py-12 text-xs text-text-muted font-mono">
+            Fetching telemetry parameters...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {equipment.map((eq) => {
+              const scoreColor = 
+                eq.status === "Healthy" ? "text-emerald-500" :
+                eq.status === "Warning" ? "text-amber-500" : "text-red-500";
+              const scoreBg = 
+                eq.status === "Healthy" ? "bg-emerald-500" :
+                eq.status === "Warning" ? "bg-amber-500" : "bg-red-500";
+              const badgeStyle = 
+                eq.status === "Healthy" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                eq.status === "Warning" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-red-500/10 text-red-500 border-red-500/20";
+
+              return (
+                <div 
+                  key={eq.id} 
+                  className="card-hover relative p-6 rounded-3xl border border-border-mute/80 bg-surface/30 dark:bg-zinc-900/10 shadow-[0_8px_30px_rgba(0,0,0,0.01)] flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-bold text-xs text-foreground font-sans tracking-tight">{eq.name}</h3>
+                        <p className="text-[9px] font-mono text-text-muted uppercase mt-0.5">{eq.id}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase border ${badgeStyle}`}>
+                        {eq.status}
+                      </span>
+                    </div>
+
+                    {/* Progress score */}
+                    <div className="mt-4">
+                      <div className="flex justify-between text-[11px] mb-1">
+                        <span className="text-text-muted">Health Index</span>
+                        <span className={`font-bold ${scoreColor}`}>{eq.health_score}%</span>
+                      </div>
+                      <div className="w-full bg-border-mute/40 rounded-full h-1.5 overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-500 ${scoreBg}`} style={{ width: `${eq.health_score}%` }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 border-t border-border-mute/60 pt-4 flex justify-end">
+                    <Link
+                      href={`/dashboard/${eq.id}`}
+                      className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-text-muted hover:text-foreground transition-colors uppercase tracking-wider"
+                    >
+                      Inspect Telemetry
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

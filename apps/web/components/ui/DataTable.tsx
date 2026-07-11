@@ -21,26 +21,26 @@ export default function DataTable<T extends { id: string | number }>({
   className = "",
 }: Props<T>) {
   return (
-    <div className={`overflow-x-auto ${className}`}>
+    <div className={`overflow-x-auto rounded-xl border border-border-mute bg-surface ${className}`}>
       <table className="w-full text-left border-collapse">
-        <thead className="bg-surface-container-low text-on-surface-variant border-b border-outline-variant">
+        <thead className="bg-background/80 text-text-muted border-b border-border-mute">
           <tr>
             {columns.map((col) => (
               <th
                 key={String(col.key)}
-                className={`px-4 py-3 text-label-md font-label uppercase tracking-wider ${col.className ?? ""}`}
+                className={`px-4 py-3 text-[9px] font-mono font-bold uppercase tracking-widest ${col.className ?? ""}`}
               >
                 {col.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-outline-variant">
+        <tbody className="divide-y divide-border-mute">
           {rows.length === 0 ? (
             <tr>
               <td
                 colSpan={columns.length}
-                className="px-4 py-8 text-center text-on-surface-variant text-body-sm"
+                className="px-4 py-8 text-center text-text-muted text-xs font-mono"
               >
                 {emptyMessage}
               </td>
@@ -49,12 +49,12 @@ export default function DataTable<T extends { id: string | number }>({
             rows.map((row) => (
               <tr
                 key={row.id}
-                className="hover:bg-surface-container-low/50 transition-colors duration-150"
+                className="hover:bg-background/40 transition-colors duration-150"
               >
                 {columns.map((col) => (
                   <td
                     key={String(col.key)}
-                    className={`px-4 py-3 text-body-sm text-on-surface ${col.className ?? ""}`}
+                    className={`px-4 py-3 text-xs text-foreground ${col.className ?? ""}`}
                   >
                     {col.render
                       ? col.render(row)

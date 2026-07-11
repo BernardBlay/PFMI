@@ -1,75 +1,80 @@
 "use client";
-import { useEffect, useRef } from "react";
-import styles from "./Hero.module.css";
 
-const stats = [
-  { value: "2,400+", label: "Machines Monitored" },
-  { value: "99.2%", label: "Uptime Achieved" },
-  { value: "180+", label: "Parts Auto-Ordered" },
-  { value: "45%", label: "Cost Reduction" },
-];
+import Link from "next/link";
+import { ArrowRight, Play } from "lucide-react";
 
 export default function Hero() {
-  const headlineRef = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    const el = headlineRef.current;
-    if (el) {
-      el.style.opacity = "0";
-      el.style.transform = "translateY(24px)";
-      setTimeout(() => {
-        el.style.transition = "opacity 0.8s ease, transform 0.8s ease";
-        el.style.opacity = "1";
-        el.style.transform = "translateY(0)";
-      }, 100);
-    }
-  }, []);
-
   return (
-    <section className={styles.hero}>
-      {/* Ambient orbs */}
-      <div className={styles.orb1} />
-      <div className={styles.orb2} />
-      <div className={styles.orb3} />
+    <section className="relative border-b border-border-mute bg-background/30 py-20 md:py-32 overflow-hidden">
+      {/* Floating gradient orbs */}
+      <div
+        className="hero-orb"
+        style={{
+          width: 500, height: 500,
+          background: "radial-gradient(circle, #059669 0%, transparent 70%)",
+          top: "-15%", left: "10%",
+        }}
+      />
+      <div
+        className="hero-orb"
+        style={{
+          width: 400, height: 400,
+          background: "radial-gradient(circle, #2563eb 0%, transparent 70%)",
+          bottom: "-10%", right: "5%",
+          animationDelay: "4s",
+        }}
+      />
 
-      {/* Grid overlay */}
-      <div className={styles.grid} />
+      <div className="relative mx-auto max-w-7xl px-6 flex flex-col items-center text-center">
+        {/* Minimalist Monospace Badge */}
+        <span className="hero-animate hero-animate-delay-1 text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-500 font-mono mb-4 block">
+          Hybrid Predictive Maintenance
+        </span>
 
-      <div className={styles.content}>
-        {/* Headline */}
-        <h1 ref={headlineRef} className={styles.headline}>
-          Hybrid Preventive
-          <br />
-          <span className={styles.gradientWord}>Maintenance</span>
-          <br />
-          Intelligence
+        <h1 className="hero-animate hero-animate-delay-2 max-w-4xl font-sans text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl text-foreground leading-[1.1] transition-transform duration-500 hover:scale-[1.01]">
+          Predict machine failures.<br />Before they disrupt operations.
         </h1>
 
+        <p className="hero-animate hero-animate-delay-3 max-w-2xl text-base sm:text-lg text-text-muted mt-6 leading-relaxed">
+          Stop reacting to downtime. PFMI integrates time-series sensor telemetry, OCR maintenance logs, and machine learning models to forecast remaining useful life and dispatch automated alerts.
+        </p>
 
-
-        {/* CTA buttons */}
-        <div className={styles.actions}>
-          <a href="/dashboard" className={styles.btnPrimary} id="hero-cta-primary">
-            Get Started Free
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          </a>
-          <a href="#how-it-works" className={styles.btnSecondary} id="hero-cta-secondary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="5 3 19 12 5 21 5 3"/>
-            </svg>
-            See How It Works
-          </a>
+        <div className="hero-animate hero-animate-delay-4 flex flex-col sm:flex-row gap-3 mt-10">
+          <Link
+            href="/dashboard"
+            className="btn-primary-shimmer flex items-center justify-center gap-2 rounded bg-foreground px-6 py-3 text-sm font-medium text-background transition-all hover:bg-foreground/90 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
+          >
+            Launch Dashboard
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/ocr-upload"
+            className="flex items-center justify-center rounded border border-border-mute bg-surface px-6 py-3 text-sm font-medium text-text-muted transition-all hover:bg-background hover:text-foreground hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer"
+          >
+            <Play className="h-3.5 w-3.5 mr-2" />
+            Ingest Logs (OCR)
+          </Link>
         </div>
-      </div>
 
-      {/* Scroll indicator */}
-      <div className={styles.scrollIndicator}>
-        <div className={styles.scrollMouse}>
-          <div className={styles.scrollWheel} />
+        {/* Metrics Bar */}
+        <div className="hero-animate hero-animate-delay-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 max-w-4xl w-full border-t border-border-mute/80 mt-16 pt-8 text-left">
+          <div className="flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-4 sm:gap-1 transition-all duration-300 hover:translate-x-1 border-b border-border-mute/30 sm:border-0 pb-4 sm:pb-0">
+            <span className="text-3xl font-extrabold text-foreground tracking-tight shrink-0 min-w-[80px]">99.8%</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted font-mono leading-normal text-right sm:text-left">System Uptime</span>
+          </div>
+          <div className="flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-4 sm:gap-1 transition-all duration-300 hover:translate-x-1 border-b border-border-mute/30 sm:border-0 pb-4 sm:pb-0">
+            <span className="text-3xl font-extrabold text-foreground tracking-tight shrink-0 min-w-[80px]">&lt; 5 Sec</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted font-mono leading-normal text-right sm:text-left">OCR Ingest Speed</span>
+          </div>
+          <div className="flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-4 sm:gap-1 transition-all duration-300 hover:translate-x-1 border-b border-border-mute/30 sm:border-0 pb-4 sm:pb-0">
+            <span className="text-3xl font-extrabold text-foreground tracking-tight shrink-0 min-w-[80px]">94.2%</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted font-mono leading-normal text-right sm:text-left">Anomaly Accuracy</span>
+          </div>
+          <div className="flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-4 sm:gap-1 transition-all duration-300 hover:translate-x-1 pb-4 sm:pb-0">
+            <span className="text-3xl font-extrabold text-foreground tracking-tight shrink-0 min-w-[80px]">-40%</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted font-mono leading-normal text-right sm:text-left">Maintenance Cost</span>
+          </div>
         </div>
-        <span>Scroll to explore</span>
       </div>
     </section>
   );

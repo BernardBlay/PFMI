@@ -1,76 +1,115 @@
-import styles from "./Stats.module.css";
+"use client";
 
-const stats = [
-  {
-    value: "2,400+",
-    label: "Machines Monitored",
-    sublabel: "across connected facilities",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-      </svg>
-    ),
-  },
-  {
-    value: "99.2%",
-    label: "Uptime Achieved",
-    sublabel: "average across all clients",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-        <polyline points="22 4 12 14.01 9 11.01"/>
-      </svg>
-    ),
-  },
-  {
-    value: "180+",
-    label: "Parts Auto-Ordered",
-    sublabel: "per month, predictively",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-        <line x1="12" y1="22.08" x2="12" y2="12"/>
-      </svg>
-    ),
-  },
-  {
-    value: "45%",
-    label: "Cost Reduction",
-    sublabel: "in maintenance spending",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
-        <polyline points="17 18 23 18 23 12"/>
-      </svg>
-    ),
-  },
-];
+import { Cpu, Layers, TrendingUp, CheckCircle2 } from "lucide-react";
+
+interface DiagnosticCard {
+  title: string;
+  badge: string;
+  description: string;
+  bullets: string[];
+  icon: any;
+  colorClass: string;
+}
 
 export default function Stats() {
-  return (
-    <section className={styles.section} id="stats">
-      <div className={styles.bg} />
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <span className={styles.eyebrow}>By The Numbers</span>
-          <h2 className={styles.title}>
-            Results that speak{" "}
-            <span className={styles.gradientText}>for themselves</span>
-          </h2>
-        </div>
+  const cards: DiagnosticCard[] = [
+    {
+      title: "OCR Log Ingestion",
+      badge: "Log Processing",
+      description: "Converts handwritten or scanned physical technician notes into clean, indexed database records instantly, removing manual clerical overhead.",
+      bullets: [
+        "Ingest to structured form in 3s",
+        "Automatic entity parsing",
+        "Digital historical archiving"
+      ],
+      icon: Layers,
+      colorClass: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+    },
+    {
+      title: "Anomaly Analysis Engine",
+      badge: "Telemetry Processing",
+      description: "Constantly monitors incoming voltage, vibration, pressure, and temperature telemetry streams to detect micro-deviations before they lead to hardware failures.",
+      bullets: [
+        "Vibration trend tracking",
+        "Thermal deviation scanning",
+        "Fast 94.2% model confidence"
+      ],
+      icon: Cpu,
+      colorClass: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+    },
+    {
+      title: "RUL Forecasting Model",
+      badge: "Lifetime Calculations",
+      description: "Generates wear trajectory forecasts that output an exact Remaining Useful Life (RUL) score, aligning scheduled downtime with the physical condition of the hardware.",
+      bullets: [
+        "Live component wear mapping",
+        "Predictive repair scheduling",
+        "Dynamic threshold adaptation"
+      ],
+      icon: TrendingUp,
+      colorClass: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+    }
+  ];
 
-        <div className={styles.grid}>
-          {stats.map((s) => (
-            <div key={s.label} className={styles.card}>
-              <div className={styles.cardInner}>
-                <span className={styles.icon}>{s.icon}</span>
-                <span className={styles.value}>{s.value}</span>
-                <span className={styles.label}>{s.label}</span>
-                <span className={styles.sublabel}>{s.sublabel}</span>
-              </div>
-            </div>
-          ))}
+  return (
+    <section className="py-20 md:py-32 border-b border-border-mute bg-background/50" id="stats">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="reveal-scale py-4">
+          {/* Header */}
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="text-[10px] font-bold tracking-widest uppercase text-text-muted font-mono block">
+              PFMI Prediction Engine
+            </span>
+            <h3 className="text-3xl font-extrabold tracking-tight text-foreground font-sans mt-3">
+              Diagnostic Precision. Machine Protection.
+            </h3>
+            <p className="text-xs md:text-sm text-text-muted mt-3 max-w-xl mx-auto leading-relaxed">
+              PFMI bypasses simple timestamp alerts. Our models combine live telemetry and historical OCR logs to compute machine wear trajectories.
+            </p>
+          </div>
+
+          {/* 3-Column Elegant Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+            {cards.map((card, idx) => {
+              const Icon = card.icon;
+              return (
+                <div 
+                  key={idx}
+                  className="group relative p-8 rounded-3xl border border-border-mute/80 bg-surface/30 dark:bg-zinc-900/10 shadow-[0_8px_30px_rgba(0,0,0,0.01)] transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-800 hover:-translate-y-1 hover:shadow-md"
+                >
+                  {/* Icon badge */}
+                  <div className={`inline-flex p-3 rounded-2xl border mb-6 transition-all group-hover:scale-105 ${card.colorClass}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+
+                  {/* Title & Badge */}
+                  <div className="space-y-1 mb-4">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted font-mono">
+                      {card.badge}
+                    </span>
+                    <h4 className="text-base font-bold text-foreground font-sans tracking-tight">
+                      {card.title}
+                    </h4>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-xs text-text-muted leading-relaxed mb-6">
+                    {card.description}
+                  </p>
+
+                  {/* Bullets */}
+                  <ul className="space-y-2 border-t border-border-mute/60 pt-6">
+                    {card.bullets.map((bullet, bIdx) => (
+                      <li key={bIdx} className="flex items-center gap-2.5 text-xs text-zinc-600 dark:text-zinc-400">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                        <span>{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

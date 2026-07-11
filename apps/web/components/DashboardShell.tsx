@@ -46,14 +46,9 @@ export default function DashboardShell({
           }
         }
 
-        // If not using mock/placeholder keys, redirect to login page
-        const isPlaceholder =
-          !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-          process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
-        if (!isPlaceholder) {
-          router.push("/login");
-          return;
-        }
+        // Always redirect to login page if unauthenticated
+        router.push("/login");
+        return;
       }
     };
 
@@ -75,12 +70,7 @@ export default function DashboardShell({
             } catch (e) {}
           }
           setUser(null);
-          const isPlaceholder =
-            !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-            process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
-          if (!isPlaceholder) {
-            router.push("/login");
-          }
+          router.push("/login");
         }
       }
     });
@@ -100,11 +90,12 @@ export default function DashboardShell({
     <>
       <SideNav onReportFault={openEmergency} user={user} />
       <div className="ml-64 flex flex-col min-h-screen">
-        <TopNav onEmergencyClick={openEmergency} pageTitle={pageTitle} />
+        <TopNav onEmergencyClick={openEmergency} pageTitle={pageTitle} user={user} />
         <main className="flex-1 p-6 bg-background overflow-auto">
           {children}
         </main>
       </div>
+
       {emergencyOpen && (
         <EmergencyAlert
           alert={activeAlert}

@@ -57,3 +57,48 @@ VALUES
 ('ALT-01', 'EQ-103', 'High', 'Bearing vibration exceeds safe threshold'),
 ('ALT-02', 'EQ-102', 'Medium', 'Temperature anomaly detected')
 ON CONFLICT (id) DO NOTHING;
+
+-- Profiles Table linked to auth.users
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY, -- references auth.users(id)
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(100),
+    role VARCHAR(50) DEFAULT 'Operator Node 04',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Policies for RLS
+CREATE POLICY "Public profiles are viewable by everyone" ON profiles
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert their own profile" ON profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" ON profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+-- Sync trigger function from auth.users to public.profiles
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, full_name, role)
+    VALUES (
+        new.id,
+        new.email,
+        COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+        COALESCE(new.raw_user_meta_data->>'role', 'Operator Node 04')
+    );
+    RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger activation
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+

@@ -1,6 +1,8 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import type { Alert } from "@/lib/db";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
 interface Props {
   alert: Alert | null;
@@ -47,7 +49,7 @@ export default function EmergencyAlert({ alert, onClose, onResolved }: Props) {
         }, 1200);
       }
     } catch {
-      // fallback: still close
+      // fallback
       onResolved();
       onClose();
     } finally {
@@ -62,68 +64,68 @@ export default function EmergencyAlert({ alert, onClose, onResolved }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-surface-container-lowest border border-error-container rounded-xl overflow-hidden shadow-2xl"
+        className="w-full max-w-lg bg-surface border border-border-mute rounded-2xl overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Emergency Alert"
       >
-        {/* Shimmer header */}
+        {/* Header */}
         <div
-          className={`${isCritical ? "emergency-shimmer" : "bg-tertiary-container"} h-10 flex items-center px-5 gap-3`}
+          className={`h-12 flex items-center px-5 gap-3 ${
+            isCritical ? "bg-red-500 text-white" : "bg-amber-500 text-black"
+          }`}
         >
-          <span className="material-symbols-outlined text-on-error-container text-xl">
-            emergency
-          </span>
-          <span className="font-label font-bold text-label-md tracking-widest uppercase text-on-error-container">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <span className="text-[10px] font-mono font-bold tracking-widest uppercase">
             {isCritical ? "CRITICAL ALERT — IMMEDIATE ACTION REQUIRED" : `${alert.severity.toUpperCase()} SEVERITY ALERT`}
           </span>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-5">
-          {/* Equipment + severity */}
+          {/* Affected equipment details */}
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-label-sm font-label uppercase tracking-wider text-on-surface-variant">
+              <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-text-muted">
                 Affected Unit
               </p>
-              <p className="text-headline-md font-headline font-semibold text-on-surface mt-1">
+              <p className="text-base font-bold text-foreground mt-1">
                 {alert.equipmentName}
               </p>
-              <p className="text-body-sm font-body text-on-surface-variant mt-0.5">
+              <p className="text-[10px] font-mono text-text-muted mt-0.5">
                 ID: {alert.equipment_id}
               </p>
             </div>
             <div
-              className={`px-3 py-1.5 rounded-lg text-label-sm font-label font-bold tracking-wider uppercase ${
+              className={`px-3 py-1 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase ${
                 isCritical
-                  ? "bg-error-container text-on-error-container"
-                  : "bg-tertiary-fixed text-on-tertiary-fixed-variant"
+                  ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                  : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
               }`}
             >
               {alert.severity}
             </div>
           </div>
 
-          {/* Alert message */}
-          <div className="bg-surface-container-low rounded-lg p-4 border border-outline-variant">
-            <p className="text-label-sm font-label uppercase tracking-wider text-on-surface-variant mb-1">
+          {/* Alert Message Box */}
+          <div className="bg-background rounded-xl p-4 border border-border-mute">
+            <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-text-muted mb-1">
               Alert Detail
             </p>
-            <p className="text-body-lg font-body text-on-surface">{alert.message}</p>
+            <p className="text-xs leading-relaxed text-foreground">{alert.message}</p>
           </div>
 
-          {/* Alert ID / timestamp */}
-          <div className="grid grid-cols-2 gap-4 text-body-sm font-label">
+          {/* Alert metadata */}
+          <div className="grid grid-cols-2 gap-4 text-xs">
             <div>
-              <p className="text-on-surface-variant text-label-sm uppercase tracking-wider mb-1">Alert ID</p>
-              <p className="text-on-surface font-bold">{alert.id}</p>
+              <p className="text-text-muted text-[10px] font-mono font-bold uppercase tracking-wider mb-1">Alert ID</p>
+              <p className="text-foreground font-mono font-bold">{alert.id}</p>
             </div>
             {alert.created_at && (
               <div>
-                <p className="text-on-surface-variant text-label-sm uppercase tracking-wider mb-1">Raised At</p>
-                <p className="text-on-surface font-bold">
+                <p className="text-text-muted text-[10px] font-mono font-bold uppercase tracking-wider mb-1">Raised At</p>
+                <p className="text-foreground font-bold">
                   {new Date(alert.created_at).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -137,20 +139,20 @@ export default function EmergencyAlert({ alert, onClose, onResolved }: Props) {
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             {resolved ? (
-              <div className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-surface-container-high text-on-surface-variant font-label font-bold text-label-sm tracking-wider">
-                <span className="material-symbols-outlined text-base">check_circle</span>
+              <div className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-background text-text-muted font-bold text-xs tracking-wider border border-border-mute">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 RESOLVED
               </div>
             ) : (
               <button
                 onClick={handleResolve}
                 disabled={resolving}
-                className="flex-1 bg-secondary text-on-secondary font-label font-bold py-2.5 rounded-lg text-label-sm tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 bg-foreground text-background font-bold py-2.5 rounded-lg text-xs tracking-wider hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {resolving ? (
-                  <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <span className="material-symbols-outlined text-base">check_circle</span>
+                  <CheckCircle2 className="h-4 w-4" />
                 )}
                 MARK RESOLVED
               </button>
@@ -158,7 +160,7 @@ export default function EmergencyAlert({ alert, onClose, onResolved }: Props) {
 
             <button
               onClick={onClose}
-              className="flex-1 bg-surface-container-high text-on-surface-variant font-label font-bold py-2.5 rounded-lg text-label-sm tracking-wider hover:bg-surface-container-highest transition-colors"
+              className="flex-1 bg-background border border-border-mute text-text-muted hover:text-foreground font-bold py-2.5 rounded-lg text-xs tracking-wider transition-colors cursor-pointer"
             >
               DISMISS
             </button>

@@ -1,30 +1,36 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/db";
+import { Mail, Lock, ArrowLeft, Loader2, Eye, EyeOff, Cpu, Wrench, Shield, CheckCircle } from "lucide-react";
 
-export default function Login() {
+export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
 
-  // Update clock for industrial dashboard feel
+  // If already logged in, redirect
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toISOString().replace("T", " ").substring(0, 19) + " UTC");
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    supabase.auth.getSession().then((res) => {
+      if (res.data?.session) {
+        router.push("/dashboard");
+      } else {
+        const mockUserStr = localStorage.getItem("pfmi-mock-user");
+        if (mockUserStr) {
+          router.push("/dashboard");
+        }
+      }
+    });
+  }, [router]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +56,7 @@ export default function Login() {
 
       try {
         if (isPlaceholder) {
-          // Simulate registration success and automatic login
+          // Simulate registration success
           const mockUser = {
             id: `mock-usr-${Math.random().toString(36).substring(2, 9)}`,
             email,
@@ -66,7 +72,7 @@ export default function Login() {
             router.refresh();
           }, 1500);
         } else {
-          // Real registration
+          // Real registration using Supabase
           const { data, error: signupError } = await supabase.auth.signUp({
             email,
             password,
@@ -78,7 +84,11 @@ export default function Login() {
             },
           });
 
-          if (signupError) throw signupError;
+          if (signupError) {
+            setError(signupError.message);
+            setLoading(false);
+            return;
+          }
 
           if (data.session) {
             setSuccess("SECURE LINK REGISTERED! REDIRECTING...");
@@ -87,7 +97,7 @@ export default function Login() {
               router.refresh();
             }, 1500);
           } else {
-            setSuccess("OPERATOR LINK INITIATED! CHECK EMAIL FOR VALIDATION.");
+            setSuccess("OPERATOR LINK INITIATED! CHECK EMAIL.");
             setLoading(false);
           }
         }
@@ -99,12 +109,12 @@ export default function Login() {
     } else {
       try {
         if (isPlaceholder) {
-          // Simulate authentication success
+          // Simulate auth success
           const mockUser = {
             id: "mock-operator-user",
             email,
             user_metadata: {
-              role: selectedRole || "System Admin",
+              role: selectedRole || "Admin",
               full_name: email.split("@")[0],
             },
           };
@@ -115,13 +125,60 @@ export default function Login() {
             router.refresh();
           }, 1200);
         } else {
-          // Real login
+          // Real login using Supabase
           const { data, error: loginError } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
 
-          if (loginError) throw loginError;
+          if (loginError) {
+            // Auto-signup fallback for demo profiles if they don't exist in Supabase yet
+            if (password === "demo-operator-pass") {
+              console.log("Demo profile login failed. Attempting auto-signup fallback...");
+              const { data: signupData, error: signupError } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                  data: {
+                    role: selectedRole || "Operator Node 04",
+                    full_name: email.split("@")[0],
+                  },
+                },
+              });
+
+              if (signupError) {
+                console.error("Auto-signup fallback failed:", signupError);
+                setError(`Auto-signup failed: ${signupError.message}`);
+                setLoading(false);
+                return;
+              }
+
+              console.log("Auto-signup fallback succeeded. Attempting login again...");
+              // Auto login after sign up
+              const { data: loginData2, error: loginError2 } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+              });
+              
+              if (loginError2) {
+                console.error("Login after auto-signup failed:", loginError2);
+                setError(loginError2.message);
+                setLoading(false);
+                return;
+              }
+
+              setSuccess("SECURE LINK ESTABLISHED (DEMO NODE INITIATED)!...");
+              setTimeout(() => {
+                router.push("/dashboard");
+                router.refresh();
+              }, 1200);
+              return;
+            }
+
+            setError(loginError.message);
+            setLoading(false);
+            return;
+          }
 
           setSuccess("SECURE LINK ESTABLISHED! ACCESSING HUB...");
           setTimeout(() => {
@@ -148,326 +205,222 @@ export default function Login() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col justify-center items-center bg-surface-dim text-on-surface relative overflow-hidden select-none font-body px-4 py-12">
-      {/* Premium background styling */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-secondary/20 to-transparent" />
-      
-      {/* Return link */}
-      <a 
-        href="/" 
-        className="absolute top-8 left-8 flex items-center gap-2 text-on-surface-variant hover:text-secondary transition-colors duration-200 z-20 font-label text-xs tracking-wider"
-      >
-        <span className="material-symbols-outlined text-sm">arrow_back</span>
-        PORTAL INDEX
-      </a>
+    <main className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Decorative Blob */}
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl -z-10" />
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-teal-500/5 dark:bg-teal-500/10 rounded-full blur-3xl -z-10" />
 
-      {/* Main Card */}
-      <div className="w-full max-w-[440px] bg-surface-container/60 backdrop-blur-md border border-outline-variant rounded-lg shadow-2xl z-20 relative transition-all duration-300 hover:border-secondary/30 flex flex-col overflow-hidden">
-        
-        {/* Top subtle bar */}
-        <div className="h-[2px] bg-gradient-to-r from-secondary via-secondary-container to-secondary" />
+      {/* Top Navbar/Back Link */}
+      <div className="absolute top-6 left-6 sm:left-12">
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Home
+        </Link>
+      </div>
 
-        {/* Brand Banner */}
-        <div className="px-8 pt-8 pb-4 text-center">
-          <div className="inline-flex items-center justify-center p-3 bg-secondary/10 text-secondary rounded-full mb-4 border border-secondary/20 shadow-sm">
-            <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>precision_manufacturing</span>
-          </div>
-          <h1 className="font-headline text-xl tracking-wider text-on-surface font-extrabold uppercase">
-            PREVENTIVE <span className="text-secondary">INTEL</span>
-          </h1>
-          <p className="font-label text-[9px] text-on-surface-variant tracking-widest uppercase mt-1">
-            Personnel & Fleet Control Hub
-          </p>
+      <div className="sm:mx-auto sm:w-full sm:max-w-md px-6">
+        {/* Branding Logo */}
+        <div className="flex justify-center mb-6">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="h-8 w-8 flex items-center justify-center rounded bg-foreground text-background border border-zinc-200 dark:border-zinc-800">
+              <Cpu className="h-4.5 w-4.5" />
+            </div>
+            <span className="font-sans font-bold tracking-tight text-foreground text-lg">
+              PFMI<span className="text-zinc-400 font-normal">.ai</span>
+            </span>
+          </Link>
         </div>
+        <h2 className="text-center text-xl font-bold tracking-tight text-foreground font-sans">
+          Operator Console Access
+        </h2>
+        <p className="mt-2 text-center text-xs text-text-muted">
+          Welcome back operator! Please establish a secure session link.
+        </p>
+      </div>
 
-        {/* Tab Toggle */}
-        <div className="flex px-8 mt-2 mb-4">
-          <div className="grid grid-cols-2 w-full p-1 bg-surface-container-low/60 rounded border border-outline-variant/30">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("login");
-                setError(null);
-                setSuccess(null);
-              }}
-              className={`py-2 rounded text-[9px] font-label font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                mode === "login"
-                  ? "bg-secondary text-on-secondary shadow-sm"
-                  : "text-on-surface-variant hover:text-on-surface"
-              }`}
-            >
-              Establish Link
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                setError(null);
-                setSuccess(null);
-              }}
-              className={`py-2 rounded text-[9px] font-label font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                mode === "signup"
-                  ? "bg-secondary text-on-secondary shadow-sm"
-                  : "text-on-surface-variant hover:text-on-surface"
-              }`}
-            >
-              Register Operator
-            </button>
-          </div>
-        </div>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
+        <div className="bg-surface border border-border-mute py-8 px-6 sm:px-10 rounded-2xl shadow-xl backdrop-blur-md">
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-mono">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-mono">
+              {success}
+            </div>
+          )}
 
-        {/* Form Inputs */}
-        <div className="px-8 pb-8 pt-2">
-          <form onSubmit={handleAuthSubmit} className="space-y-4">
-            
-            {/* Feedback Alerts */}
-            {error && (
-              <div className="p-3 bg-error/10 border border-error/20 rounded text-error text-[10px] font-label tracking-wide flex items-center gap-2 animate-pulse">
-                <span className="material-symbols-outlined text-sm">warning_amber</span>
-                <span className="uppercase">{error}</span>
-              </div>
-            )}
-            {success && (
-              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded text-green-500 text-[10px] font-label tracking-wide flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm">verified_user</span>
-                <span className="uppercase">{success}</span>
-              </div>
-            )}
-
-            {/* Email/ID */}
-            <div className="space-y-1">
-              <label className="block text-[10px] font-label text-on-surface-variant tracking-wider uppercase" htmlFor="email">
-                Operator ID / Email
+          <form className="space-y-5" onSubmit={handleAuthSubmit}>
+            {/* Email Input */}
+            <div>
+              <label htmlFor="email" className="block text-[10px] font-mono font-bold text-text-muted uppercase mb-1.5">
+                Operator Email
               </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-sm">
-                  person
-                </span>
+              <div className="relative rounded-lg shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+                  <Mail className="h-3.5 w-3.5" />
+                </div>
                 <input
                   id="email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   required
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (selectedRole && mode === "login") setSelectedRole(null);
-                  }}
-                  placeholder="name@preventive.intel"
-                  className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded text-sm text-on-surface placeholder:text-on-surface-variant/35 focus:outline-none focus:border-secondary transition-colors"
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="operator@pfmi.ai"
+                  className="block w-full pl-9 pr-3 py-2 text-xs bg-background border border-border-mute rounded-lg outline-none focus:border-emerald-500 transition-colors text-foreground"
                 />
               </div>
             </div>
 
-            {/* Password */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center">
-                <label className="block text-[10px] font-label text-on-surface-variant tracking-wider uppercase" htmlFor="password">
-                  Passcode Key
-                </label>
-                {mode === "login" && (
-                  <a href="#" className="text-[9px] font-label text-secondary hover:text-secondary/80 transition-colors uppercase">
-                    Reset Key?
-                  </a>
-                )}
-              </div>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-sm">
-                  vpn_key
-                </span>
+            {/* Password Input */}
+            <div>
+              <label htmlFor="password" className="block text-[10px] font-mono font-bold text-text-muted uppercase mb-1.5">
+                Access Passcode Keys
+              </label>
+              <div className="relative rounded-lg shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+                  <Lock className="h-3.5 w-3.5" />
+                </div>
                 <input
                   id="password"
-                  type="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded text-sm text-on-surface placeholder:text-on-surface-variant/35 focus:outline-none focus:border-secondary transition-colors"
+                  placeholder="••••••••"
+                  className="block w-full pl-9 pr-10 py-2 text-xs bg-background border border-border-mute rounded-lg outline-none focus:border-emerald-500 transition-colors text-foreground"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-muted hover:text-foreground cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
               </div>
             </div>
 
-            {/* Confirm Password (Signup only) */}
             {mode === "signup" && (
-              <div className="space-y-1">
-                <label className="block text-[10px] font-label text-on-surface-variant tracking-wider uppercase" htmlFor="confirmPassword">
-                  Confirm Passcode Key
+              <div>
+                <label htmlFor="confirmPassword" className="block text-[10px] font-mono font-bold text-text-muted uppercase mb-1.5">
+                  Confirm Passcode Keys
                 </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-sm">
-                    vpn_key
-                  </span>
+                <div className="relative rounded-lg shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+                    <Lock className="h-3.5 w-3.5" />
+                  </div>
                   <input
                     id="confirmPassword"
-                    type="password"
+                    name="confirmPassword"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded text-sm text-on-surface placeholder:text-on-surface-variant/35 focus:outline-none focus:border-secondary transition-colors"
+                    placeholder="••••••••"
+                    className="block w-full pl-9 pr-3 py-2 text-xs bg-background border border-border-mute rounded-lg outline-none focus:border-emerald-500 transition-colors text-foreground"
                   />
                 </div>
               </div>
             )}
 
-            {/* Node Role select (Signup only) */}
-            {mode === "signup" && (
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-label text-on-surface-variant tracking-wider uppercase">
-                  Assigned Node Role
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole("Admin")}
-                    className={`flex flex-col items-center justify-center p-2 rounded border text-center transition-all cursor-pointer ${
-                      selectedRole === "Admin"
-                        ? "bg-secondary/15 border-secondary text-on-surface"
-                        : "bg-surface-container-low/40 border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low hover:border-outline-variant"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-xs mb-0.5">admin_panel_settings</span>
-                    <span className="font-label text-[8px] font-bold">Admin</span>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole("Lead Tech")}
-                    className={`flex flex-col items-center justify-center p-2 rounded border text-center transition-all cursor-pointer ${
-                      selectedRole === "Lead Tech"
-                        ? "bg-secondary/15 border-secondary text-on-surface"
-                        : "bg-surface-container-low/40 border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low hover:border-outline-variant"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-xs mb-0.5">engineering</span>
-                    <span className="font-label text-[8px] font-bold">Technician</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRole("Sys Eng")}
-                    className={`flex flex-col items-center justify-center p-2 rounded border text-center transition-all cursor-pointer ${
-                      selectedRole === "Sys Eng"
-                        ? "bg-secondary/15 border-secondary text-on-surface"
-                        : "bg-surface-container-low/40 border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low hover:border-outline-variant"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-xs mb-0.5">construction</span>
-                    <span className="font-label text-[8px] font-bold">Engineer</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Checkbox */}
-            <div className="flex items-center pt-1">
-              <input
-                id="consent"
-                type="checkbox"
-                required
-                defaultChecked
-                className="w-3.5 h-3.5 text-secondary bg-surface-container-low border-outline-variant rounded focus:ring-0"
-              />
-              <label htmlFor="consent" className="ml-2 text-[9px] text-on-surface-variant/80 font-body select-none">
-                I authorize this session and acknowledge compliance directives.
-              </label>
-            </div>
-
             {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-secondary hover:bg-secondary/90 text-on-secondary py-3 rounded text-[10px] font-label font-bold tracking-widest uppercase transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 cursor-pointer"
-            >
-              {loading ? (
-                <>
-                  <span className="w-3 h-3 border-2 border-on-secondary/30 border-t-on-secondary rounded-full animate-spin" />
-                  {mode === "login" ? "AUTHENTICATING..." : "REGISTERING..."}
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-sm font-bold">
-                    {mode === "login" ? "login" : "person_add"}
-                  </span>
-                  {mode === "login" ? "ESTABLISH SECURE LINK" : "REGISTER OPERATOR LINK"}
-                </>
-              )}
-            </button>
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-bold text-background bg-foreground hover:bg-zinc-800 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200 transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {loading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : mode === "login" ? (
+                  "ESTABLISH SECURE LINK"
+                ) : (
+                  "REGISTER NEW OPERATOR"
+                )}
+              </button>
+            </div>
           </form>
 
-          {/* Operator Quick-Access */}
-          {mode === "login" && (
-            <div className="mt-6 border-t border-outline-variant/30 pt-5">
-              <h2 className="text-[9px] font-label text-on-surface-variant tracking-wider uppercase mb-3 text-center">
-                Operator Quick-Access
-              </h2>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => selectDemoProfile("operator04@preventive.intel", "Admin")}
-                  className={`flex flex-col items-center justify-center p-2.5 rounded border text-center transition-all cursor-pointer ${
-                    selectedRole === "Admin"
-                      ? "bg-secondary/15 border-secondary text-on-surface"
-                      : "bg-surface-container-low/40 border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low hover:border-outline-variant"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm mb-1">admin_panel_settings</span>
-                  <span className="font-label text-[9px] font-bold truncate max-w-full">Op 04</span>
-                  <span className="text-[7px] opacity-75 uppercase">Admin</span>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => selectDemoProfile("miller@preventive.intel", "Lead Tech")}
-                  className={`flex flex-col items-center justify-center p-2.5 rounded border text-center transition-all cursor-pointer ${
-                    selectedRole === "Lead Tech"
-                      ? "bg-secondary/15 border-secondary text-on-surface"
-                      : "bg-surface-container-low/40 border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low hover:border-outline-variant"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm mb-1">engineering</span>
-                  <span className="font-label text-[9px] font-bold truncate max-w-full">J. Miller</span>
-                  <span className="text-[7px] opacity-75 uppercase">Tech</span>
-                </button>
+          {/* Toggle login/signup mode */}
+          <div className="mt-5 text-center">
+            <button
+              onClick={() => setMode(mode === "login" ? "signup" : "login")}
+              className="text-xs text-emerald-650 dark:text-emerald-450 hover:underline cursor-pointer"
+            >
+              {mode === "login" ? "Create a new operator node account" : "Back to console sign in"}
+            </button>
+          </div>
 
-                <button
-                  type="button"
-                  onClick={() => selectDemoProfile("chen@preventive.intel", "Sys Eng")}
-                  className={`flex flex-col items-center justify-center p-2.5 rounded border text-center transition-all cursor-pointer ${
-                    selectedRole === "Sys Eng"
-                      ? "bg-secondary/15 border-secondary text-on-surface"
-                      : "bg-surface-container-low/40 border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low hover:border-outline-variant"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm mb-1">construction</span>
-                  <span className="font-label text-[9px] font-bold truncate max-w-full">S. Chen</span>
-                  <span className="text-[7px] opacity-75 uppercase">Eng</span>
-                </button>
+          {/* Divider */}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border-mute" />
+              </div>
+              <div className="relative flex justify-center text-[10px] font-mono uppercase">
+                <span className="bg-surface px-2 text-text-muted">Pre-seeded Demo Nodes</span>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Live Diagnostics Footer Panel */}
-        <div className="bg-surface-container-low/60 px-6 py-4 border-t border-outline-variant/40 grid grid-cols-2 gap-x-4 gap-y-2 text-[8px] font-label text-on-surface-variant/80 tracking-wider">
-          <div className="flex items-center justify-between border-r border-outline-variant/30 pr-2">
-            <span className="opacity-50 uppercase">Location</span>
-            <span className="font-bold text-on-surface">TARKWA, GH</span>
-          </div>
-          <div className="flex items-center justify-between pl-2">
-            <span className="opacity-50 uppercase">Gateway</span>
-            <span className="font-bold text-on-surface">UMaT-GW</span>
-          </div>
-          <div className="flex items-center justify-between border-r border-outline-variant/30 pr-2 col-span-1">
-            <span className="opacity-50 uppercase">Security</span>
-            <span className="font-bold text-green-500 flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-green-500 animate-ping" />
-              ADISADEL
-            </span>
-          </div>
-          <div className="flex items-center justify-between pl-2 col-span-1">
-            <span className="opacity-50 uppercase">Time</span>
-            <span className="font-mono text-on-surface truncate max-w-[70px]">{currentTime ? currentTime.split(" ")[1] : "..."}</span>
+            <div className="mt-4 space-y-2">
+              <button
+                type="button"
+                onClick={() => selectDemoProfile("operator04@pfmi.ai", "Admin")}
+                className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border-mute bg-background/50 hover:border-zinc-400 dark:hover:border-zinc-700 transition-all text-left text-xs cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Shield className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                  <div>
+                    <span className="font-bold text-foreground">operator04@pfmi.ai</span>
+                    <p className="text-[9px] text-text-muted leading-none mt-0.5 font-mono">System Admin Node 04</p>
+                  </div>
+                </div>
+                <span className="text-[9px] font-mono uppercase bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded border border-indigo-500/20 group-hover:scale-105 transition-transform">
+                  Admin
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => selectDemoProfile("miller@pfmi.ai", "Lead Tech")}
+                className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border-mute bg-background/50 hover:border-zinc-400 dark:hover:border-zinc-700 transition-all text-left text-xs cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <div>
+                    <span className="font-bold text-foreground">miller@pfmi.ai</span>
+                    <p className="text-[9px] text-text-muted leading-none mt-0.5 font-mono">Lead Maintenance Technician</p>
+                  </div>
+                </div>
+                <span className="text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20 group-hover:scale-105 transition-transform">
+                  Tech
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => selectDemoProfile("chen@pfmi.ai", "Sys Eng")}
+                className="w-full flex items-center justify-between p-2.5 rounded-lg border border-border-mute bg-background/50 hover:border-zinc-400 dark:hover:border-zinc-700 transition-all text-left text-xs cursor-pointer group"
+              >
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <div>
+                    <span className="font-bold text-foreground">chen@pfmi.ai</span>
+                    <p className="text-[9px] text-text-muted leading-none mt-0.5 font-mono">System Reliability Engineer</p>
+                  </div>
+                </div>
+                <span className="text-[9px] font-mono uppercase bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded border border-amber-500/20 group-hover:scale-105 transition-transform">
+                  Eng
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

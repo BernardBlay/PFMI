@@ -46,7 +46,21 @@ export interface Alert {
   equipmentName?: string;
 }
 
+export interface Profile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: string;
+  created_at?: string;
+}
+
 // Fallback Mock Data
+const MOCK_PROFILES: Profile[] = [
+  { id: "mock-operator-user", email: "operator04@pfmi.ai", full_name: "operator04", role: "Admin" },
+  { id: "mock-miller-user", email: "miller@pfmi.ai", full_name: "miller", role: "Lead Tech" },
+  { id: "mock-chen-user", email: "chen@pfmi.ai", full_name: "chen", role: "Sys Eng" },
+];
+
 const MOCK_EQUIPMENT: Equipment[] = [
   { id: "EQ-101", name: "Hydraulic Pump A", status: "Healthy", health_score: 94 },
   { id: "EQ-102", name: "Cooling Fan B", status: "Warning", health_score: 72 },
@@ -313,4 +327,34 @@ export const db = {
       };
     }
   },
+
+  getProfile: async (id: string): Promise<Profile | null> => {
+    try {
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", id).single();
+      if (error || !data) {
+        throw error || new Error("No data returned");
+      }
+      return data;
+    } catch (error) {
+      console.warn(`Supabase fetch failed for profile ${id}, using fallback:`, error);
+      return MOCK_PROFILES.find((p) => p.id === id) || null;
+    }
+  },
+
+  updateProfile: async (profile: Partial<Profile> & { id: string }): Promise<Profile | null> => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(profile)
+        .eq("id", profile.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      return null;
+    }
+  },
 };
+

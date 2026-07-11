@@ -1,43 +1,38 @@
-import styles from "./CTA.module.css";
+"use client";
+
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default function CTA() {
   return (
-    <section className={styles.section}>
-      <div className={styles.card}>
-        {/* Ambient glow */}
-        <div className={styles.glow} />
-
-        {/* Grid overlay */}
-        <div className={styles.grid} />
-
-        <div className={styles.content}>
-          <span className={styles.eyebrow}>Ready to get started?</span>
-          <h2 className={styles.title}>
-            Transform your maintenance
-            <br />
-            <span className={styles.gradientText}>operations today</span>
-          </h2>
-          <p className={styles.subtitle}>
-            Join the growing number of facilities using PFMI to predict failures,
-            reduce downtime, and cut maintenance costs by up to 45%.
-          </p>
-
-          <div className={styles.actions}>
-            <a href="/dashboard" className={styles.btnPrimary} id="cta-get-started">
-              Get Started Free
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </a>
-            <a href="#features" className={styles.btnSecondary} id="cta-learn-more">
-              Learn More
-            </a>
-          </div>
-
-          <p className={styles.note}>
-            No credit card required · Built for Build Weekend 1.0
-          </p>
+    <section className="relative py-20 bg-background overflow-hidden border-b border-border-mute">
+      <div
+        className="hero-orb"
+        style={{
+          width: 350, height: 350,
+          background: "radial-gradient(circle, #059669 0%, transparent 70%)",
+          bottom: "-10%", left: "30%",
+        }}
+      />
+      <div className="relative mx-auto max-w-4xl px-6 text-center space-y-6">
+        <h2 className="text-3xl font-extrabold tracking-tight text-foreground font-sans sm:text-4xl">
+          Transform your maintenance operations today
+        </h2>
+        <p className="text-sm text-text-muted max-w-lg mx-auto">
+          Join facilities using PFMI to predict mechanical breakdowns, decrease downtime, and cut maintenance costs.
+        </p>
+        <div className="pt-4">
+          <Link
+            href="/dashboard"
+            className="btn-primary-shimmer inline-flex items-center justify-center gap-2 rounded bg-foreground px-8 py-3 text-sm font-bold text-background transition-all hover:bg-foreground/90 hover:scale-[1.03] active:scale-[0.98]"
+          >
+            Launch Fleet Dashboard
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
+        <p className="text-[10px] text-text-muted font-mono uppercase tracking-wider pt-2">
+          No installation required • Built for Build Weekend 1.0
+        </p>
       </div>
     </section>
   );
