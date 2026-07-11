@@ -2,20 +2,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-
-interface Equipment {
-  id: string;
-  name: string;
-  status: string;
-  healthScore: number;
-}
-
-interface Alert {
-  id: string;
-  equipmentName: string;
-  severity: string;
-  message: string;
-}
+import { Equipment, Alert } from "@/lib/db";
 
 export default function Dashboard() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -113,10 +100,10 @@ export default function Dashboard() {
                 <div className="mt-4">
                   <div className="flex justify-between text-sm mb-1">
                     <span>Health Score</span>
-                    <span className="font-bold">{eq.health_score ?? eq.healthScore ?? 100}%</span>
+                    <span className="font-bold">{eq.health_score}%</span>
                   </div>
                   <div className="w-full bg-slate-800 rounded-full h-2">
-                    <div className="h-2 rounded-full bg-blue-500" style={{ width: `${eq.health_score ?? eq.healthScore ?? 100}%` }} />
+                    <div className="h-2 rounded-full bg-blue-500" style={{ width: `${eq.health_score}%` }} />
                   </div>
                 </div>
               </div>
