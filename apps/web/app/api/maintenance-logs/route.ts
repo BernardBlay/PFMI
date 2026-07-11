@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { supabaseRestRequest } from "@/lib/supabase-rest";
 import fs from "fs";
 import path from "path";
 
@@ -75,14 +75,42 @@ export async function POST(req: Request) {
       }
     }
 
-    // Insert log structured data into Supabase/DB
-    const savedLog = await db.insertMaintenanceLog({
+    const logPayload = {
       equipment_id: extractedData.equipment_id,
       technician: extractedData.technician,
       service_date: extractedData.service_date,
       notes: extractedData.notes,
       status_after_service: extractedData.status_after_service,
-      extracted_text: rawText
+      extracted_text: rawText,
+    };
+
+    const insertResponse = await supabaseRestRequest("maintenance_logs", {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(logPayload),
+    });
+
+    const savedLog = await insertResponse.json();
+
+    let healthScore = 100;
+    let status = "Healthy";
+    if (logPayload.status_after_service === "Warning") {
+      healthScore = 72;
+      status = "Warning";
+    } else if (logPayload.status_after_service === "Critical") {
+      healthScore = 45;
+      status = "Critical";
+    }
+
+    await supabaseRestRequest(`equipment?id=eq.${encodeURIComponent(logPayload.equipment_id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status,
+        health_score: healthScore,
+        updated_at: new Date().toISOString(),
+      }),
     });
 
     return NextResponse.json({
@@ -90,7 +118,7 @@ export async function POST(req: Request) {
       filename: file.name,
       extractedData,
       rawText,
-      savedLog
+      savedLog: Array.isArray(savedLog) ? savedLog[0] : savedLog,
     });
 
   } catch (err: any) {

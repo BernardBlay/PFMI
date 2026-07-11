@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { supabaseRestRequest } from "@/lib/supabase-rest";
 
 export async function GET() {
-  const data = await db.getEquipment();
-  return NextResponse.json(data);
+  try {
+    const response = await supabaseRestRequest("equipment", {
+      query: {
+        select: "*",
+        order: "name",
+      },
+    });
+    return NextResponse.json(await response.json());
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Database unavailable" }, { status: 503 });
+  }
 }
 
 export async function POST(req: Request) {

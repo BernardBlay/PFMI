@@ -5,9 +5,13 @@ export interface MLPrediction {
   confidence: number;
 }
 
+function getMlServiceUrl() {
+  return process.env.NEXT_PUBLIC_ML_SERVICE_URL || "http://localhost:8000";
+}
+
 export const mlClient = {
   predictRUL: async (sensorData: Record<string, number>): Promise<MLPrediction> => {
-    const serviceUrl = process.env.ML_SERVICE_URL || "http://localhost:8000";
+    const serviceUrl = getMlServiceUrl();
     
     try {
       const res = await fetch(`${serviceUrl}/predict`, {
@@ -15,7 +19,16 @@ export const mlClient = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sensors: sensorData }),
       });
-      return await res.json();
+      if (!res.ok) {
+        throw new Error(`ML service returned ${res.status}`);
+      }
+
+      const data = await res.json();
+      return {
+        remainingUsefulLife: Number(data.remainingUsefulLife ?? 42),
+        anomalyDetected: Boolean(data.anomalyDetected ?? false),
+        confidence: Number(data.confidence ?? 0.89),
+      };
     } catch (err) {
       console.warn("Could not connect to ML service, returning mock data:", err);
       return {

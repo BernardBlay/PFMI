@@ -5,7 +5,7 @@ import TelemetryChart from "@/components/TelemetryChart";
 import DataTable from "@/components/ui/DataTable";
 import SeverityBadge from "@/components/ui/SeverityBadge";
 import type { Column } from "@/components/ui/DataTable";
-import { ArrowLeft, Thermometer, Activity, Gauge, Bolt, AlertTriangle, Wrench } from "lucide-react";
+import { ArrowLeft, Thermometer, Activity, Gauge, Bolt, AlertTriangle, Wrench, Cpu, TrendingUp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,58 @@ export async function generateMetadata({
   return {
     title: eq ? `${eq.name} — Telemetry | PFMI` : "Telemetry | PFMI",
   };
+}
+
+/* ── SVG Circular Health Gauge ───────────────────────────────────────── */
+function HealthGauge({ score, size = 96 }: { score: number; size?: number }) {
+  const radius = 15.9154943092;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+  const color =
+    score >= 80 ? "#10b981" : score >= 60 ? "#f59e0b" : "#ef4444";
+  const bgRing =
+    score >= 80
+      ? "rgba(16,185,129,0.08)"
+      : score >= 60
+      ? "rgba(245,158,11,0.08)"
+      : "rgba(239,68,68,0.08)";
+
+  return (
+    <div
+      className="relative flex items-center justify-center shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <div
+        className="absolute inset-0 rounded-full border"
+        style={{ background: bgRing, borderColor: `${color}20` }}
+      />
+      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+        <circle
+          cx="18" cy="18" r={radius}
+          fill="transparent"
+          stroke="var(--color-border-mute, #27272a)"
+          strokeWidth="2.5"
+          opacity={0.2}
+        />
+        <circle
+          cx="18" cy="18" r={radius}
+          fill="transparent"
+          stroke={color}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          className="transition-all duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-xl font-black text-foreground leading-none">{score}</span>
+        <span className="text-[8px] uppercase tracking-widest font-bold text-text-muted mt-0.5">
+          health
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function StatusChip({ status }: { status: string }) {
@@ -113,7 +165,7 @@ export default async function TelemetryPage({
         <span className="text-text-muted text-xs font-mono font-bold">{eq.name}</span>
       </div>
 
-      {/* Page header */}
+      {/* Page header with Health Gauge */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border-mute pb-5">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -123,7 +175,7 @@ export default async function TelemetryPage({
             <StatusChip status={eq.status} />
           </div>
           <p className="text-xs font-mono text-text-muted">
-            Unit ID: {eq.id} ·{" "}
+            Unit ID: {eq.id?.slice(0, 12)} ·{" "}
             {sensorReadings.length > 0
               ? `${sensorReadings.length} sensor parameters logged`
               : "No telemetry logged"}{" "}
@@ -131,23 +183,8 @@ export default async function TelemetryPage({
           </p>
         </div>
 
-        {/* Health score */}
-        <div className="bg-surface border border-border-mute rounded-2xl px-5 py-3 text-center shrink-0 shadow-sm">
-          <p className="text-[10px] font-mono font-bold text-text-muted uppercase tracking-wider mb-1">
-            Health Score
-          </p>
-          <p
-            className={`text-xl font-bold font-mono ${
-              eq.health_score >= 80
-                ? "text-emerald-500"
-                : eq.health_score >= 60
-                ? "text-amber-500"
-                : "text-red-500"
-            }`}
-          >
-            {eq.health_score}%
-          </p>
-        </div>
+        {/* SVG Health Gauge instead of plain number */}
+        <HealthGauge score={eq.health_score} size={88} />
       </div>
 
       {/* Live sensor readings row */}
@@ -163,8 +200,12 @@ export default async function TelemetryPage({
             return (
               <div
                 key={s.label}
-                className="bg-surface border border-border-mute rounded-2xl p-4 shadow-[0_4px_12px_rgba(0,0,0,0.01)]"
+                className="relative overflow-hidden bg-surface border border-border-mute rounded-2xl p-4 shadow-[0_4px_12px_rgba(0,0,0,0.01)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
               >
+                {/* Geometric accent */}
+                <div className="absolute -bottom-3 -right-3 w-12 h-12 rounded-full opacity-[0.03]"
+                  style={{ background: "currentColor" }}
+                />
                 <div className="flex items-center gap-1.5 mb-2">
                   <div className={`p-1.5 rounded-lg border ${s.color}`}>
                     <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -174,7 +215,10 @@ export default async function TelemetryPage({
                   </span>
                 </div>
                 <p className="text-base font-bold text-foreground font-mono">{s.value}</p>
-                <p className="text-[9px] text-text-muted font-mono mt-1">Live Sensor Stream</p>
+                <p className="text-[9px] text-text-muted font-mono mt-1 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  Live Sensor Stream
+                </p>
               </div>
             );
           })}
@@ -202,11 +246,11 @@ export default async function TelemetryPage({
             {equipAlerts.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between p-3 bg-background border border-border-mute rounded-xl"
+                className="flex items-center justify-between p-3 bg-background border border-border-mute rounded-xl transition-all hover:-translate-y-0.5"
               >
                 <div>
                   <p className="text-xs text-foreground font-sans leading-relaxed">{a.message}</p>
-                  <p className="text-[9px] font-mono text-text-muted mt-0.5">{a.id}</p>
+                  <p className="text-[9px] font-mono text-text-muted mt-0.5">{a.id?.slice(0, 12)}</p>
                 </div>
                 <SeverityBadge severity={a.severity} />
               </div>

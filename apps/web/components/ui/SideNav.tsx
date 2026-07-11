@@ -16,13 +16,6 @@ import {
   ChevronRight
 } from "lucide-react";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", icon: Cpu, label: "Fleet Overview" },
-  { href: "/dashboard/EQ-101", icon: Activity, label: "Live Telemetry" },
-  { href: "#", icon: Wrench, label: "Personnel", disabled: true },
-  { href: "#", icon: AlertTriangle, label: "Complaints", disabled: true },
-  { href: "#", icon: Package, label: "Inventory", disabled: true },
-];
 
 const BOTTOM_ITEMS = [
   { href: "/ocr-upload", icon: FileText, label: "OCR Log Upload" },
@@ -68,6 +61,16 @@ export default function SideNav({ onReportFault, user }: Props) {
       : "Operator Node 04"
     : "System Admin";
 
+  const isAdmin = rawRole === "Admin";
+
+  const navItems = [
+    { href: "/dashboard", icon: Cpu, label: "Fleet Overview" },
+    { href: "/dashboard/EQ-101", icon: Activity, label: "Live Telemetry" },
+    { href: "/dashboard/personnel", icon: Wrench, label: "Personnel", disabled: !isAdmin },
+    { href: "/dashboard/complaints", icon: AlertTriangle, label: "Complaints", disabled: !isAdmin },
+    { href: "/dashboard/inventory", icon: Package, label: "Inventory", disabled: !isAdmin },
+  ];
+
   return (
     <aside className="fixed left-0 top-0 h-full flex flex-col p-4 z-40 bg-surface border-r border-border-mute w-64 no-print">
       {/* Brand */}
@@ -87,7 +90,7 @@ export default function SideNav({ onReportFault, user }: Props) {
 
       {/* Main Nav */}
       <nav className="flex-1 space-y-1">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const active = isActive(item.href);
           const Icon = item.icon;
           return (

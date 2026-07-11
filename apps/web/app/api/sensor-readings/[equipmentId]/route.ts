@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { supabaseRestRequest } from "@/lib/supabase-rest";
 
 export async function GET(
   _req: Request,
@@ -7,9 +7,16 @@ export async function GET(
 ) {
   try {
     const { equipmentId } = await params;
-    const data = await db.getSensorReadings(equipmentId);
+    const response = await supabaseRestRequest("sensor_readings", {
+      query: {
+        select: "*",
+        equipment_id: `eq.${equipmentId}`,
+        order: "timestamp",
+      },
+    });
+    const data = await response.json();
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message || "Database unavailable" }, { status: 503 });
   }
 }

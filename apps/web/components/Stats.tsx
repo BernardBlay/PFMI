@@ -54,7 +54,6 @@ export default function Stats() {
   return (
     <section className="py-20 md:py-32 border-b border-border-mute bg-background/50" id="stats">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="reveal-scale py-4">
           {/* Header */}
           <div className="text-center max-w-2xl mx-auto mb-16">
             <span className="text-[10px] font-bold tracking-widest uppercase text-text-muted font-mono block">
@@ -110,7 +109,6 @@ export default function Stats() {
               );
             })}
           </div>
-        </div>
       </div>
     </section>
   );

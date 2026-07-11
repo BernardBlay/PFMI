@@ -38,9 +38,22 @@ export default function LoginPage() {
     setError(null);
     setSuccess(null);
 
-    const isPlaceholder =
-      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder");
+    const presetRoles: Record<string, string> = {
+      "operator04@pfmi.ai": "Admin",
+      "miller@pfmi.ai": "Lead Tech",
+      "chen@pfmi.ai": "Sys Eng",
+    };
+    const normalizedEmail = email.trim().toLowerCase();
+    const resolvedRole = presetRoles[normalizedEmail] || selectedRole || "Operator Node 04";
+    const fullName = email.split("@")[0] || "operator";
+    const mockUser = {
+      id: `mock-${normalizedEmail || Math.random().toString(36).slice(2, 9)}`,
+      email,
+      user_metadata: {
+        role: resolvedRole,
+        full_name: fullName,
+      },
+    };
 
     if (mode === "signup") {
       if (password !== confirmPassword) {
@@ -48,149 +61,32 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      if (password.length < 6) {
-        setError("Passcode must be at least 6 characters!");
+
+      if (password !== "demo-operator-pass") {
+        setError("Preset accounts require the shared operator passcode.");
         setLoading(false);
         return;
       }
 
-      try {
-        if (isPlaceholder) {
-          // Simulate registration success
-          const mockUser = {
-            id: `mock-usr-${Math.random().toString(36).substring(2, 9)}`,
-            email,
-            user_metadata: {
-              role: selectedRole || "Operator Node 04",
-              full_name: email.split("@")[0],
-            },
-          };
-          localStorage.setItem("pfmi-mock-user", JSON.stringify(mockUser));
-          setSuccess("SECURE LINK REGISTERED! REDIRECTING...");
-          setTimeout(() => {
-            router.push("/dashboard");
-            router.refresh();
-          }, 1500);
-        } else {
-          // Real registration using Supabase
-          const { data, error: signupError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                role: selectedRole || "Operator Node 04",
-                full_name: email.split("@")[0],
-              },
-            },
-          });
-
-          if (signupError) {
-            setError(signupError.message);
-            setLoading(false);
-            return;
-          }
-
-          if (data.session) {
-            setSuccess("SECURE LINK REGISTERED! REDIRECTING...");
-            setTimeout(() => {
-              router.push("/dashboard");
-              router.refresh();
-            }, 1500);
-          } else {
-            setSuccess("OPERATOR LINK INITIATED! CHECK EMAIL.");
-            setLoading(false);
-          }
-        }
-      } catch (err: any) {
-        console.error("Sign up failed:", err);
-        setError(err.message || "REGISTRATION FAILURE. TRY AGAIN.");
-        setLoading(false);
-      }
+      localStorage.setItem("pfmi-mock-user", JSON.stringify(mockUser));
+      setSuccess("PRESET OPERATOR LINK REGISTERED! REDIRECTING...");
+      setTimeout(() => {
+        router.push("/dashboard");
+        router.refresh();
+      }, 1500);
     } else {
-      try {
-        if (isPlaceholder) {
-          // Simulate auth success
-          const mockUser = {
-            id: "mock-operator-user",
-            email,
-            user_metadata: {
-              role: selectedRole || "Admin",
-              full_name: email.split("@")[0],
-            },
-          };
-          localStorage.setItem("pfmi-mock-user", JSON.stringify(mockUser));
-          setSuccess("SECURE LINK ESTABLISHED! ACCESSING HUB...");
-          setTimeout(() => {
-            router.push("/dashboard");
-            router.refresh();
-          }, 1200);
-        } else {
-          // Real login using Supabase
-          const { data, error: loginError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (loginError) {
-            // Auto-signup fallback for demo profiles if they don't exist in Supabase yet
-            if (password === "demo-operator-pass") {
-              console.log("Demo profile login failed. Attempting auto-signup fallback...");
-              const { data: signupData, error: signupError } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                  data: {
-                    role: selectedRole || "Operator Node 04",
-                    full_name: email.split("@")[0],
-                  },
-                },
-              });
-
-              if (signupError) {
-                console.error("Auto-signup fallback failed:", signupError);
-                setError(`Auto-signup failed: ${signupError.message}`);
-                setLoading(false);
-                return;
-              }
-
-              console.log("Auto-signup fallback succeeded. Attempting login again...");
-              // Auto login after sign up
-              const { data: loginData2, error: loginError2 } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-              });
-              
-              if (loginError2) {
-                console.error("Login after auto-signup failed:", loginError2);
-                setError(loginError2.message);
-                setLoading(false);
-                return;
-              }
-
-              setSuccess("SECURE LINK ESTABLISHED (DEMO NODE INITIATED)!...");
-              setTimeout(() => {
-                router.push("/dashboard");
-                router.refresh();
-              }, 1200);
-              return;
-            }
-
-            setError(loginError.message);
-            setLoading(false);
-            return;
-          }
-
-          setSuccess("SECURE LINK ESTABLISHED! ACCESSING HUB...");
-          setTimeout(() => {
-            router.push("/dashboard");
-            router.refresh();
-          }, 1200);
-        }
-      } catch (err: any) {
-        console.error("Login failed:", err);
-        setError(err.message || "AUTHENTICATION FAILED. CHECK CREDENTIALS.");
+      if (password !== "demo-operator-pass") {
+        setError("Preset accounts require the shared operator passcode.");
         setLoading(false);
+        return;
       }
+
+      localStorage.setItem("pfmi-mock-user", JSON.stringify(mockUser));
+      setSuccess("SECURE LINK ESTABLISHED! ACCESSING HUB...");
+      setTimeout(() => {
+        router.push("/dashboard");
+        router.refresh();
+      }, 1200);
     }
   };
 

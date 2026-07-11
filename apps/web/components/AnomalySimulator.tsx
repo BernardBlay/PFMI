@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Play, Sparkles, Activity, Thermometer, Gauge, ShieldAlert, CheckCircle2, RotateCcw } from "lucide-react";
+import { mlClient } from "@/lib/ml-client";
 
 export default function AnomalySimulator() {
   const [temperature, setTemperature] = useState(68.4);
@@ -14,6 +15,11 @@ export default function AnomalySimulator() {
 
   const [wavePoints, setWavePoints] = useState<number[]>(Array(40).fill(15));
   const pointsRef = useRef(wavePoints);
+  const sensorSnapshotRef = useRef({
+    temperature: 68.4,
+    vibration: 2.3,
+    pressure: 4.2,
+  });
   pointsRef.current = wavePoints;
 
   // Drift values to simulate live stream
@@ -39,19 +45,25 @@ export default function AnomalySimulator() {
       setTemperature((prev) => {
         const diff = tempTarget - prev;
         const step = diff * 0.15 + (Math.random() - 0.5) * 0.4;
-        return parseFloat(Math.min(105, Math.max(40, prev + step)).toFixed(1));
+        const next = parseFloat(Math.min(105, Math.max(40, prev + step)).toFixed(1));
+        sensorSnapshotRef.current.temperature = next;
+        return next;
       });
 
       setVibration((prev) => {
         const diff = vibTarget - prev;
         const step = diff * 0.15 + (Math.random() - 0.5) * 0.2;
-        return parseFloat(Math.min(12, Math.max(0.5, prev + step)).toFixed(2));
+        const next = parseFloat(Math.min(12, Math.max(0.5, prev + step)).toFixed(2));
+        sensorSnapshotRef.current.vibration = next;
+        return next;
       });
 
       setPressure((prev) => {
         const diff = pressTarget - prev;
         const step = diff * 0.15 + (Math.random() - 0.5) * 0.1;
-        return parseFloat(Math.min(8, Math.max(1, prev + step)).toFixed(2));
+        const next = parseFloat(Math.min(8, Math.max(1, prev + step)).toFixed(2));
+        sensorSnapshotRef.current.pressure = next;
+        return next;
       });
 
       setRul((prev) => {
@@ -63,6 +75,26 @@ export default function AnomalySimulator() {
 
     return () => clearInterval(timer);
   }, [mode]);
+
+  // Pull the latest RUL estimate from the FastAPI ML service.
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncPrediction = async () => {
+      const prediction = await mlClient.predictRUL(sensorSnapshotRef.current);
+      if (!cancelled) {
+        setRul(prediction.remainingUsefulLife);
+      }
+    };
+
+    syncPrediction();
+    const timer = setInterval(syncPrediction, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   // Waveform graph generation
   useEffect(() => {

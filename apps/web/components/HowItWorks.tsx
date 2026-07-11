@@ -50,7 +50,7 @@ export default function HowItWorks() {
             return (
               <div 
                 key={idx}
-                className="reveal stagger-1 group relative p-8 rounded-3xl border border-border-mute/80 bg-surface/30 dark:bg-zinc-900/10 transition-all duration-300 hover:border-zinc-350 dark:hover:border-zinc-800 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.02)]"
+                className="group relative p-8 rounded-3xl border border-border-mute/80 bg-surface/30 dark:bg-zinc-900/10 transition-all duration-300 hover:border-zinc-350 dark:hover:border-zinc-800 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.02)]"
               >
                 <span className="text-4xl font-extrabold font-mono text-foreground/5 dark:text-foreground/10 absolute right-6 top-6 transition-opacity group-hover:opacity-75">
                   {item.step}
