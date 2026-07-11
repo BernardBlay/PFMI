@@ -71,12 +71,12 @@ def _load_keras_model(path: Path):
     """Try tf.keras first, fall back to keras standalone."""
     try:
         from tensorflow.keras.models import load_model  # type: ignore[import]
-        return load_model(str(path))
+        return load_model(str(path), compile=False)
     except Exception:
         pass
     try:
         from keras.models import load_model as load_model_k  # type: ignore[import]
-        return load_model_k(str(path))
+        return load_model_k(str(path), compile=False)
     except Exception as exc:
         raise ImportError(f"Cannot load Keras model: {exc}") from exc
 
@@ -190,7 +190,7 @@ def _load_wheel_loader() -> None:
 
 # Legacy
 class SensorData(BaseModel):
-    sensors: Dict[str, float]
+    sensors: Dict[str, Any]
 
 
 # Bulldozer
@@ -328,7 +328,7 @@ def load_all_models():
 # Legacy import (kept for /predict fallback)
 # ---------------------------------------------------------------------------
 try:
-    from models.predict import predict_rul
+    from models.grinder.predict import predict_rul
 except ImportError:
     predict_rul = None  # type: ignore[assignment]
     logger.warning("Legacy predict_rul not importable")
@@ -439,10 +439,12 @@ def predict_legacy(data: SensorData):
     if predict_rul is None:
         raise HTTPException(status_code=503, detail="Legacy predict module not available")
     try:
-        rul, anomaly = predict_rul(data.sensors)
+        print(f"DEBUG: Received predict request: {data.sensors}")
+        rul, anomaly, failure_type = predict_rul(data.sensors)
         return {
             "remainingUsefulLife": rul,
             "anomalyDetected": anomaly,
+            "failureType": failure_type,
             "confidence": 0.92,
         }
     except Exception as e:
