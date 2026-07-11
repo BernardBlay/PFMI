@@ -105,23 +105,23 @@ export default function AnomalySimulator() {
     .join(" L ");
 
   return (
-    <section className="relative py-24 border-b border-border-mute bg-background/50">
-      <div className="relative mx-auto max-w-7xl px-6">
-        <div className="text-center max-w-3xl mx-auto mb-12">
+    <section className="relative py-20 md:py-24 border-b border-border-mute bg-background/50 overflow-hidden">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="text-center max-w-2xl mx-auto mb-10">
           <span className="text-[10px] font-bold font-mono text-emerald-600 dark:text-emerald-500 uppercase tracking-widest block mb-2">
             Interactive Diagnostics
           </span>
           <h2 className="text-2xl font-extrabold tracking-tight text-foreground font-sans">
             AI Anomaly Detection Simulation
           </h2>
-          <p className="text-xs text-text-muted mt-2 leading-relaxed">
+          <p className="text-xs text-text-muted mt-2 leading-relaxed max-w-xl mx-auto">
             Toggle the simulation presets below to watch the ML engine evaluate high-frequency sensor streams, forecast remaining useful life (RUL), and flag structural faults in real-time.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-stretch w-full">
           {/* Preset Selector Panel */}
-          <div className="lg:col-span-4 flex flex-col justify-between p-6 bg-surface border border-border-mute rounded-2xl shadow-sm">
+          <div className="flex flex-col justify-between p-5 bg-surface border border-border-mute rounded-2xl shadow-sm min-w-0">
             <div>
               <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted mb-4">
                 Telemetry Presets
@@ -186,7 +186,7 @@ export default function AnomalySimulator() {
           </div>
 
           {/* Simulated Dashboard Screen */}
-          <div className="lg:col-span-8 bg-surface border border-border-mute rounded-2xl shadow-xl overflow-hidden flex flex-col justify-between">
+          <div className="bg-surface border border-border-mute rounded-2xl shadow-xl overflow-hidden flex flex-col justify-between min-w-0">
             {/* Header console bar */}
             <div className="px-5 py-3 border-b border-border-mute flex items-center justify-between bg-background/40">
               <div className="flex items-center gap-2">
@@ -244,13 +244,13 @@ export default function AnomalySimulator() {
             </div>
 
             {/* Vibration Scrolling Wave */}
-            <div className="p-6 bg-background/20 relative">
+            <div className="p-5 bg-background/20 relative overflow-hidden">
               <div className="absolute top-3 left-4 flex items-center gap-1">
                 <Activity className="h-3 w-3 text-text-muted animate-pulse" />
                 <span className="text-[9px] font-mono text-text-muted uppercase">Real-Time Oscillation Waveform</span>
               </div>
-              <div className="h-24 w-full flex items-end">
-                <svg className="w-full h-full overflow-visible" viewBox="0 0 390 60" preserveAspectRatio="none">
+              <div className="h-20 w-full mt-4 overflow-hidden">
+                <svg className="w-full h-full" viewBox="0 0 390 60" preserveAspectRatio="none">
                   <path
                     d={`M 0,${30 - wavePoints[0]} L ${svgPath}`}
                     fill="none"

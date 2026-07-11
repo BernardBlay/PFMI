@@ -57,23 +57,30 @@ export default function Hero() {
         </div>
 
         {/* Metrics Bar */}
-        <div className="hero-animate hero-animate-delay-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 max-w-4xl w-full border-t border-border-mute/80 mt-16 pt-8 text-left">
-          <div className="flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-4 sm:gap-1 transition-all duration-300 hover:translate-x-1 border-b border-border-mute/30 sm:border-0 pb-4 sm:pb-0">
-            <span className="text-3xl font-extrabold text-foreground tracking-tight shrink-0 min-w-[80px]">99.8%</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted font-mono leading-normal text-right sm:text-left">System Uptime</span>
-          </div>
-          <div className="flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-4 sm:gap-1 transition-all duration-300 hover:translate-x-1 border-b border-border-mute/30 sm:border-0 pb-4 sm:pb-0">
-            <span className="text-3xl font-extrabold text-foreground tracking-tight shrink-0 min-w-[80px]">&lt; 5 Sec</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted font-mono leading-normal text-right sm:text-left">OCR Ingest Speed</span>
-          </div>
-          <div className="flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-4 sm:gap-1 transition-all duration-300 hover:translate-x-1 border-b border-border-mute/30 sm:border-0 pb-4 sm:pb-0">
-            <span className="text-3xl font-extrabold text-foreground tracking-tight shrink-0 min-w-[80px]">94.2%</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted font-mono leading-normal text-right sm:text-left">Anomaly Accuracy</span>
-          </div>
-          <div className="flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-4 sm:gap-1 transition-all duration-300 hover:translate-x-1 pb-4 sm:pb-0">
-            <span className="text-3xl font-extrabold text-foreground tracking-tight shrink-0 min-w-[80px]">-40%</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-text-muted font-mono leading-normal text-right sm:text-left">Maintenance Cost</span>
-          </div>
+        <div className="hero-animate hero-animate-delay-4 grid grid-cols-2 md:grid-cols-4 gap-0 max-w-2xl w-full border border-border-mute/80 rounded-2xl mt-14 overflow-hidden">
+          {[
+            { value: "99.8%", label: "System Uptime" },
+            { value: "< 5 Sec", label: "OCR Ingest Speed" },
+            { value: "94.2%", label: "Anomaly Accuracy" },
+            { value: "-40%", label: "Maintenance Cost" },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              className={`flex flex-col items-center justify-center gap-1 py-5 px-4 bg-background/60 transition-colors duration-200 hover:bg-surface
+                ${i % 2 === 0 ? "border-r border-border-mute/60" : ""}
+                ${i < 2 ? "border-b border-border-mute/60 md:border-b-0" : ""}
+                ${i === 1 ? "md:border-r border-border-mute/60" : ""}
+                ${i === 2 ? "md:border-r border-border-mute/60" : ""}
+              `}
+            >
+              <span className="text-2xl font-extrabold text-foreground tracking-tight leading-none">
+                {stat.value}
+              </span>
+              <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted font-mono text-center leading-snug">
+                {stat.label}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </section>

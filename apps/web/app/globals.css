@@ -35,6 +35,33 @@
   --error: #ef4444;
   --error-container: rgba(239, 68, 68, 0.1);
   --on-error-container: #ef4444;
+
+  /* Accent colors */
+  --accent: #10b981;
+  --accent-light: #34d399;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+
+  /* Gradient */
+  --gradient-brand: linear-gradient(135deg, #059669 0%, #2563eb 100%);
+
+  /* Border radii */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-glow-blue: 0 0 20px rgba(37, 99, 235, 0.25);
+  --shadow-glow-orange: 0 0 20px rgba(245, 158, 11, 0.25);
+
+  /* Transitions */
+  --ease-fast: 150ms ease;
+  --ease-normal: 250ms ease;
+  --ease-slow: 400ms ease;
 }
 
 /* Explicit class override for toggling */
@@ -71,6 +98,13 @@
   --error: #ef4444;
   --error-container: rgba(239, 68, 68, 0.15);
   --on-error-container: #fca5a5;
+
+  /* Accent colors */
+  --accent: #34d399;
+  --accent-light: #6ee7b7;
+
+  /* Gradient */
+  --gradient-brand: linear-gradient(135deg, #34d399 0%, #60a5fa 100%);
 }
 
 @theme inline {
@@ -259,6 +293,27 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1aa;
+}
+
+/* ═══ DEMO PRESENTATION MODE ═══ */
+
+.demo-spotlight {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid rgba(16, 185, 129, 0.35);
+  outline-offset: -2px;
+  border-radius: 0px;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.06), inset 0 0 40px rgba(16, 185, 129, 0.03);
+  transition: outline-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.demo-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ═══ WORKSPACE/DASHBOARD STYLES ═══ */

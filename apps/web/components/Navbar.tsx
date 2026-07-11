@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Sun, Moon, Menu, X, Cpu, LogIn, Activity } from "lucide-react";
+import { Sun, Moon, Menu, X, Cpu } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 import { supabase } from "@/lib/db";
 
@@ -54,8 +54,8 @@ export default function Navbar() {
         <div className="flex h-14 items-center justify-between px-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="h-7.5 w-7.5 flex items-center justify-center rounded bg-foreground text-background border border-zinc-200 dark:border-zinc-800 transition-transform duration-300 group-hover:scale-105">
-              <Cpu className="h-4.5 w-4.5" />
+            <div className="h-7 w-7 flex items-center justify-center rounded bg-foreground text-background border border-zinc-200 dark:border-zinc-800 transition-transform duration-300 group-hover:scale-105">
+              <Cpu className="h-4 w-4" />
             </div>
             <span className="font-sans font-bold tracking-tight text-foreground">
               PFMI<span className="text-zinc-400 font-normal">.ai</span>
