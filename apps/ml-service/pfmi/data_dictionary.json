@@ -1,0 +1,767 @@
+{
+  "dataset_name": "PFMI Wheel Loader Synthetic IoT Dataset",
+  "version": "1.0.0",
+  "description": "10-million-record synthetic sensor dataset for training Predictive Failure/Maintenance Intelligence models on heavy wheel loaders (Cat 950GC, Volvo L120H, Komatsu WA380, Hyundai HL960).",
+  "sampling_interval": "5 minutes",
+  "total_records_target": 10000000,
+  "machines": 120,
+  "date_range": "2022-01-01 to 2025-12-31 (approx.)",
+
+  "columns": {
+
+    "Machine_ID": {
+      "type": "integer",
+      "unit": "—",
+      "description": "Unique identifier per physical machine (1–120).",
+      "normal_range": "1–120",
+      "failure_threshold": "N/A",
+      "pm_importance": "Groups time-series per asset; required for per-machine models and fleet analytics."
+    },
+    "Manufacturer": {
+      "type": "string",
+      "unit": "—",
+      "description": "OEM brand: Caterpillar, Volvo, Komatsu, or Hyundai.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Failure modes and operating envelopes differ by OEM; encode as embedding or one-hot."
+    },
+    "Model": {
+      "type": "string",
+      "unit": "—",
+      "description": "Specific model variant (950GC, L120H, WA380, HL960).",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Engine horsepower, bucket capacity, and component life differ by model."
+    },
+    "Year": {
+      "type": "integer",
+      "unit": "year",
+      "description": "Manufacturing year of the machine.",
+      "normal_range": "2015–2023",
+      "failure_threshold": "N/A",
+      "pm_importance": "Older machines accumulate more wear; year proxies generation of components."
+    },
+    "Engine_Hours": {
+      "type": "float",
+      "unit": "hours",
+      "description": "Total operating hours on the engine hour meter.",
+      "normal_range": "0–30,000",
+      "failure_threshold": ">20,000 h — increased failure probability",
+      "pm_importance": "Primary life indicator; most OEM service intervals are hour-based."
+    },
+    "Machine_Age": {
+      "type": "float",
+      "unit": "years",
+      "description": "Elapsed years since manufacturing year.",
+      "normal_range": "0–10",
+      "failure_threshold": ">7 years — significantly higher failure rates",
+      "pm_importance": "Ages rubber seals, wiring harnesses, and structural components independent of hours."
+    },
+    "Serial_Number": {
+      "type": "string",
+      "unit": "—",
+      "description": "Unique OEM serial number string.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Links to OEM service bulletins and recall databases."
+    },
+    "Firmware_Version": {
+      "type": "string",
+      "unit": "—",
+      "description": "ECU/telematics firmware version installed on the machine.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Older firmware may have known sensor bugs affecting reading accuracy."
+    },
+
+    "Timestamp": {
+      "type": "datetime (ISO 8601)",
+      "unit": "—",
+      "description": "UTC timestamp of the sensor reading.",
+      "normal_range": "2022-01-01T00:00:00 – 2025-12-31T23:55:00",
+      "failure_threshold": "N/A",
+      "pm_importance": "Temporal anchor for sequence models (LSTM, Transformer); enables seasonal features."
+    },
+    "Latitude": {
+      "type": "float",
+      "unit": "decimal degrees",
+      "description": "GPS latitude of machine position.",
+      "normal_range": "-90 to 90",
+      "failure_threshold": "N/A",
+      "pm_importance": "Geofencing; correlates terrain with sensor readings."
+    },
+    "Longitude": {
+      "type": "float",
+      "unit": "decimal degrees",
+      "description": "GPS longitude of machine position.",
+      "normal_range": "-180 to 180",
+      "failure_threshold": "N/A",
+      "pm_importance": "Geofencing; route analysis for duty-cycle profiling."
+    },
+    "Elevation": {
+      "type": "float",
+      "unit": "meters",
+      "description": "GPS-derived elevation above sea level.",
+      "normal_range": "0–3,000",
+      "failure_threshold": ">2,500 m — de-rating required; turbo stress increases",
+      "pm_importance": "High altitude reduces air density, stressing turbocharger and fuel system."
+    },
+    "Ambient_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "External air temperature at job site.",
+      "normal_range": "-20 to 55",
+      "failure_threshold": ">45°C — cooling system stress; <-10°C — cold-start wear",
+      "pm_importance": "Directly affects cooling efficiency, lubricant viscosity, and battery capacity."
+    },
+    "Humidity": {
+      "type": "float",
+      "unit": "% RH",
+      "description": "Relative humidity at job site.",
+      "normal_range": "5–100",
+      "failure_threshold": ">90% — corrosion risk on electrical connectors",
+      "pm_importance": "High humidity accelerates corrosion in electrical harnesses."
+    },
+    "Rainfall": {
+      "type": "float",
+      "unit": "mm/hr",
+      "description": "Current rainfall rate.",
+      "normal_range": "0–50",
+      "failure_threshold": ">20 mm/hr — ingress risk for seals",
+      "pm_importance": "Water ingress degrades hydraulic oil and electrical systems."
+    },
+    "Dust_Level": {
+      "type": "float",
+      "unit": "mg/m³ (index 0–100)",
+      "description": "Airborne particulate concentration index.",
+      "normal_range": "0–100",
+      "failure_threshold": ">70 — air filter clogging accelerates",
+      "pm_importance": "Dust clogs air filters, increasing Intake_Pressure and engine wear."
+    },
+    "Terrain_Type": {
+      "type": "string",
+      "unit": "—",
+      "description": "Surface classification: Flat, Gravel, Rocky, Muddy, Sandy, Compacted, Steep, Uneven.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Rough/steep terrain increases suspension, axle, and tire wear rates."
+    },
+    "Slope": {
+      "type": "float",
+      "unit": "degrees",
+      "description": "Current ground slope angle (positive = uphill).",
+      "normal_range": "-30 to 30",
+      "failure_threshold": ">20° — brake and transmission stress",
+      "pm_importance": "Steep slopes dramatically increase brake temperature and transmission load."
+    },
+    "Altitude": {
+      "type": "float",
+      "unit": "meters",
+      "description": "Barometric altitude (may differ slightly from GPS elevation).",
+      "normal_range": "0–3,000",
+      "failure_threshold": "Same as Elevation",
+      "pm_importance": "Used alongside GPS elevation for cross-validation and turbo stress estimation."
+    },
+    "Weather": {
+      "type": "string",
+      "unit": "—",
+      "description": "Qualitative weather condition: Clear, Cloudy, Rain, Heavy Rain, Dust Storm, Fog, Snow, Hot & Dry.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Encodes complex environmental interactions; useful as a context feature."
+    },
+    "Job_Site": {
+      "type": "string",
+      "unit": "—",
+      "description": "Named job-site location.",
+      "normal_range": "categorical (10 sites)",
+      "failure_threshold": "N/A",
+      "pm_importance": "Site-specific duty cycles; some sites run machines much harder."
+    },
+
+    "Engine_RPM": {
+      "type": "float",
+      "unit": "RPM",
+      "description": "Engine crankshaft rotation speed.",
+      "normal_range": "700–2,300",
+      "failure_threshold": ">2,400 — overspeed risk; <600 — stall risk",
+      "pm_importance": "High RPM variance indicates governor issues; sustained high RPM accelerates wear."
+    },
+    "Fuel_Rate": {
+      "type": "float",
+      "unit": "L/hr",
+      "description": "Instantaneous fuel consumption rate.",
+      "normal_range": "2–32",
+      "failure_threshold": ">30 — excessive consumption; possible injector fault",
+      "pm_importance": "Abnormal fuel rate at given load indicates injection or combustion problems."
+    },
+    "Fuel_Level": {
+      "type": "float",
+      "unit": "%",
+      "description": "Tank fuel level percentage.",
+      "normal_range": "5–100",
+      "failure_threshold": "<10% — risk of fuel starvation",
+      "pm_importance": "Low fuel can introduce air into fuel lines, causing cavitation damage."
+    },
+    "Engine_Load": {
+      "type": "float",
+      "unit": "fraction (0–1)",
+      "description": "Normalized engine load factor from ECU.",
+      "normal_range": "0.05–1.0",
+      "failure_threshold": ">0.95 sustained — thermal overload",
+      "pm_importance": "Load is the primary driver of wear rate on all mechanical components."
+    },
+    "Hydraulic_Load": {
+      "type": "float",
+      "unit": "fraction (0–1)",
+      "description": "Normalized hydraulic system load.",
+      "normal_range": "0.05–1.0",
+      "failure_threshold": ">0.95 sustained — pump cavitation risk",
+      "pm_importance": "High hydraulic load raises pump temperature and accelerates seal degradation."
+    },
+    "Bucket_Load": {
+      "type": "float",
+      "unit": "tonnes",
+      "description": "Estimated payload in bucket via load-moment sensor.",
+      "normal_range": "0–3.5",
+      "failure_threshold": ">3.6 t — structural overload",
+      "pm_importance": "Overloading causes axle, frame fatigue, and tire failures."
+    },
+    "Travel_Speed": {
+      "type": "float",
+      "unit": "km/h",
+      "description": "Machine travel speed.",
+      "normal_range": "0–38",
+      "failure_threshold": ">35 km/h with full bucket — instability/brake stress",
+      "pm_importance": "High speed with load amplifies tire wear and suspension fatigue."
+    },
+    "Gear": {
+      "type": "string/int",
+      "unit": "—",
+      "description": "Current transmission gear: 1, 2, 3, 4, N, R.",
+      "normal_range": "1–4, N, R",
+      "failure_threshold": "N/A",
+      "pm_importance": "Frequent high-gear engagement at low speed indicates operator misuse."
+    },
+    "Idle_Time": {
+      "type": "float",
+      "unit": "minutes",
+      "description": "Idle time within the current interval.",
+      "normal_range": "0–5",
+      "failure_threshold": ">3 min/interval consistently — excessive idling increases soot buildup",
+      "pm_importance": "Excessive idling causes DPF clogging and wet-stacking in diesel engines."
+    },
+    "PTO_Status": {
+      "type": "string",
+      "unit": "—",
+      "description": "Power Take-Off status: Active or Inactive.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "PTO engagement changes hydraulic and engine load profiles."
+    },
+    "Working_Mode": {
+      "type": "string",
+      "unit": "—",
+      "description": "Current operational mode: Digging, Loading, Traveling, Dumping, Idle, Grading, Stockpiling.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Each mode has a distinct sensor signature; critical context for anomaly detection."
+    },
+    "Operator_ID": {
+      "type": "string",
+      "unit": "—",
+      "description": "Anonymized operator identifier (OP0001–OP0080).",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Operator behavior is a major driver of wear; some operators overload consistently."
+    },
+    "Operator_Experience": {
+      "type": "integer",
+      "unit": "years",
+      "description": "Operator's years of experience on heavy equipment.",
+      "normal_range": "1–25",
+      "failure_threshold": "<2 years — higher misuse risk",
+      "pm_importance": "Less experienced operators cause more thermal and mechanical stress events."
+    },
+    "Shift": {
+      "type": "string",
+      "unit": "—",
+      "description": "Current work shift: Day, Night, or Swing.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Night shifts have different ambient conditions; fatigue-related errors differ by shift."
+    },
+
+    "Coolant_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Engine coolant temperature measured at radiator outlet.",
+      "normal_range": "70–100",
+      "failure_threshold": ">107°C — warning; >115°C — critical overheating",
+      "pm_importance": "Early indicator of cooling system degradation and impending engine overheating."
+    },
+    "Oil_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Engine lubricant oil temperature.",
+      "normal_range": "80–115",
+      "failure_threshold": ">125°C — oil degradation accelerates",
+      "pm_importance": "Hot oil loses viscosity, increasing metal-to-metal contact and bearing wear."
+    },
+    "Engine_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Block-level engine temperature (composite sensor).",
+      "normal_range": "75–105",
+      "failure_threshold": ">120°C — shutdown threshold on most ECUs",
+      "pm_importance": "Holistic thermal health indicator; triggers ECU derate before shutdown."
+    },
+    "Oil_Pressure": {
+      "type": "float",
+      "unit": "kPa",
+      "description": "Engine lubricating oil circuit pressure.",
+      "normal_range": "250–450",
+      "failure_threshold": "<200 kPa — critical low; engine shutdown risk",
+      "pm_importance": "Pressure drops indicate pump wear, oil loss, or clogged oil pick-up strainer."
+    },
+    "Coolant_Pressure": {
+      "type": "float",
+      "unit": "bar",
+      "description": "Engine coolant system pressure.",
+      "normal_range": "1.0–1.8",
+      "failure_threshold": "<0.7 bar — leak suspected; >2.0 bar — cap failure",
+      "pm_importance": "Pressure loss indicates hose/gasket leaks; cap failure causes boiling."
+    },
+    "Intake_Air_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Air temperature entering the intake manifold after intercooler.",
+      "normal_range": "25–65",
+      "failure_threshold": ">75°C — intercooler failure likely",
+      "pm_importance": "Hot intake air reduces combustion efficiency and is an early turbo/intercooler failure sign."
+    },
+    "Intake_Pressure": {
+      "type": "float",
+      "unit": "bar (absolute)",
+      "description": "Intake manifold pressure (boost pressure indicator).",
+      "normal_range": "1.2–1.9",
+      "failure_threshold": "<1.1 bar — turbo underperforming; >2.1 bar — overboost",
+      "pm_importance": "Low boost at high load is the first sign of turbo compressor wheel damage."
+    },
+    "Exhaust_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Exhaust gas temperature before turbocharger turbine.",
+      "normal_range": "300–600",
+      "failure_threshold": ">680°C — sustained — turbo heat damage; DPF regen issues",
+      "pm_importance": "EGT spikes indicate rich combustion, injector drip, or turbo restriction."
+    },
+    "Exhaust_Backpressure": {
+      "type": "float",
+      "unit": "kPa",
+      "description": "Pressure measured downstream of turbo turbine (DPF clogging indicator).",
+      "normal_range": "1–8",
+      "failure_threshold": ">12 kPa — DPF clogging; >15 kPa — critical",
+      "pm_importance": "Rising backpressure reduces engine power and increases EGT."
+    },
+    "Turbo_Boost": {
+      "type": "float",
+      "unit": "bar (gauge)",
+      "description": "Turbocharger boost pressure (gauge, above atmospheric).",
+      "normal_range": "0.8–2.5",
+      "failure_threshold": "<0.6 bar at full load — turbo failure; >2.8 bar — overboost",
+      "pm_importance": "Declining boost under load is the clearest early indicator of turbo failure."
+    },
+    "Fuel_Pressure": {
+      "type": "float",
+      "unit": "kPa",
+      "description": "High-pressure fuel rail pressure.",
+      "normal_range": "400–700",
+      "failure_threshold": "<300 kPa — fuel pump fault; <150 kPa — critical",
+      "pm_importance": "Low rail pressure causes misfires, black smoke, and injector damage."
+    },
+    "Air_Filter_Restriction": {
+      "type": "float",
+      "unit": "% (0=clean, 100=fully blocked)",
+      "description": "Air filter restriction level derived from differential pressure sensor.",
+      "normal_range": "0–60",
+      "failure_threshold": ">75% — service required; >90% — engine de-rate",
+      "pm_importance": "Clogged air filter starves engine of oxygen, raising EGT and reducing power."
+    },
+
+    "Hydraulic_Pressure": {
+      "type": "float",
+      "unit": "bar",
+      "description": "Main hydraulic circuit pressure.",
+      "normal_range": "50–350",
+      "failure_threshold": "<30 bar — pump failure suspected; >370 bar — relief valve issue",
+      "pm_importance": "Pressure drops precede hydraulic pump failure; spikes indicate blockage."
+    },
+    "Hydraulic_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Hydraulic oil temperature in main circuit.",
+      "normal_range": "40–90",
+      "failure_threshold": ">105°C — oil degradation; seal failure risk",
+      "pm_importance": "Hot hydraulic oil degrades seals and reduces pump efficiency."
+    },
+    "Pump_Efficiency": {
+      "type": "float",
+      "unit": "fraction (0–1)",
+      "description": "Volumetric efficiency of the main hydraulic pump (derived from flow vs. theoretical).",
+      "normal_range": "0.80–1.0",
+      "failure_threshold": "<0.65 — significant wear; <0.50 — replacement required",
+      "pm_importance": "Gradual efficiency decline is the primary symptom of hydraulic pump wear."
+    },
+    "Pump_Vibration": {
+      "type": "float",
+      "unit": "mm/s (RMS)",
+      "description": "Vibration amplitude on hydraulic pump housing.",
+      "normal_range": "1.0–5.0",
+      "failure_threshold": ">8 mm/s — bearing wear inside pump; >12 — imminent failure",
+      "pm_importance": "Vibration rise precedes pump failure by days to weeks."
+    },
+    "Pump_Current": {
+      "type": "float",
+      "unit": "Amperes",
+      "description": "Electric current drawn by hydraulic pump motor (if electric-driven).",
+      "normal_range": "10–70",
+      "failure_threshold": ">75 A — overload; <5 A at work — seized pump",
+      "pm_importance": "Current spikes indicate stalling; drops indicate loss of hydraulic prime."
+    },
+    "Hydraulic_Flow": {
+      "type": "float",
+      "unit": "L/min",
+      "description": "Flow rate in main hydraulic circuit.",
+      "normal_range": "0–150",
+      "failure_threshold": "<20 L/min at full load — pump fault",
+      "pm_importance": "Flow drop at constant pressure indicates internal pump leakage."
+    },
+    "Hydraulic_Oil_Level": {
+      "type": "float",
+      "unit": "%",
+      "description": "Hydraulic reservoir oil level.",
+      "normal_range": "60–100",
+      "failure_threshold": "<30% — critical low; air ingestion risk",
+      "pm_importance": "Low level causes pump cavitation and rapid seal failure."
+    },
+
+    "Battery_Voltage": {
+      "type": "float",
+      "unit": "Volts",
+      "description": "24V system battery terminal voltage.",
+      "normal_range": "23.0–27.5",
+      "failure_threshold": "<21 V — battery failure; >29 V — overcharge",
+      "pm_importance": "Voltage sag indicates aging batteries or charging system faults."
+    },
+    "Battery_Current": {
+      "type": "float",
+      "unit": "Amperes",
+      "description": "Battery charge/discharge current (positive = charging).",
+      "normal_range": "-10 to 180",
+      "failure_threshold": "<-20 A at idle — excessive parasitic drain",
+      "pm_importance": "Excessive discharge without regen indicates short circuits or failed components."
+    },
+    "Alternator_Output": {
+      "type": "float",
+      "unit": "Volts",
+      "description": "Alternator output voltage.",
+      "normal_range": "26.5–29.0",
+      "failure_threshold": "<24 V — alternator undercharging; >31 V — regulator fault",
+      "pm_importance": "Undercharging leads to battery depletion and ECU resets in the field."
+    },
+    "ECU_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Engine Control Unit internal temperature.",
+      "normal_range": "40–80",
+      "failure_threshold": ">90°C — ECU thermal throttling risk",
+      "pm_importance": "Hot ECU causes intermittent faults and sensor reading errors."
+    },
+
+    "Transmission_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Transmission fluid temperature.",
+      "normal_range": "65–115",
+      "failure_threshold": ">130°C — fluid degradation; >145°C — critical",
+      "pm_importance": "Hot transmission fluid leads to clutch pack slippage and gear failure."
+    },
+    "Transmission_Pressure": {
+      "type": "float",
+      "unit": "kPa",
+      "description": "Main transmission hydraulic control pressure.",
+      "normal_range": "1,200–2,000",
+      "failure_threshold": "<800 kPa — clutch slippage; <400 — complete failure",
+      "pm_importance": "Pressure drop correlates directly with clutch pack wear progression."
+    },
+    "Brake_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Wet disc brake oil temperature (or caliper temp on dry brakes).",
+      "normal_range": "50–180",
+      "failure_threshold": ">250°C — brake fade risk; >300°C — critical",
+      "pm_importance": "Overheated brakes lose stopping power rapidly — critical safety failure."
+    },
+    "Brake_Pressure": {
+      "type": "float",
+      "unit": "bar",
+      "description": "Hydraulic brake circuit pressure.",
+      "normal_range": "80–160",
+      "failure_threshold": "<40 bar — fluid loss or actuator failure",
+      "pm_importance": "Pressure decay without braking indicates internal cylinder seal failure."
+    },
+    "Tire_Pressure_FL": {
+      "type": "float",
+      "unit": "PSI",
+      "description": "Front-left tire inflation pressure.",
+      "normal_range": "85–120",
+      "failure_threshold": "<60 PSI — underinflation; >130 PSI — overinflation",
+      "pm_importance": "Underinflated tires generate heat, deform sidewalls, and fail catastrophically."
+    },
+    "Tire_Pressure_FR": {
+      "type": "float",
+      "unit": "PSI",
+      "description": "Front-right tire inflation pressure.",
+      "normal_range": "85–120",
+      "failure_threshold": "Same as FL",
+      "pm_importance": "Pressure imbalance between sides indicates puncture or bead damage."
+    },
+    "Tire_Pressure_RL": {
+      "type": "float",
+      "unit": "PSI",
+      "description": "Rear-left tire inflation pressure.",
+      "normal_range": "85–120",
+      "failure_threshold": "Same as FL",
+      "pm_importance": "Rear tires carry drive torque; low pressure causes bead slip on rim."
+    },
+    "Tire_Pressure_RR": {
+      "type": "float",
+      "unit": "PSI",
+      "description": "Rear-right tire inflation pressure.",
+      "normal_range": "85–120",
+      "failure_threshold": "Same as FL",
+      "pm_importance": "Monitor all four together; rapid loss in any one indicates puncture."
+    },
+    "Tire_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Average tire sidewall surface temperature (IR sensor).",
+      "normal_range": "30–75",
+      "failure_threshold": ">90°C — heat buildup from underinflation or overloading",
+      "pm_importance": "High tire temps with low pressure signal imminent blowout."
+    },
+    "Steering_Angle": {
+      "type": "float",
+      "unit": "degrees",
+      "description": "Articulation angle of the front/rear frame (±55° max).",
+      "normal_range": "-55 to 55",
+      "failure_threshold": "N/A (diagnostic context)",
+      "pm_importance": "Frequent high-angle steering at speed stresses the articulation bearing."
+    },
+    "Suspension_Vibration": {
+      "type": "float",
+      "unit": "g (RMS)",
+      "description": "Whole-machine vibration measured at frame near operator cab.",
+      "normal_range": "0.5–6.0",
+      "failure_threshold": ">9 g — structural fatigue concern; >12 g — immediate check",
+      "pm_importance": "Sustained high-g vibration cracks welds and fatigues hydraulic hoses."
+    },
+
+    "Overall_Vibration": {
+      "type": "float",
+      "unit": "mm/s (RMS)",
+      "description": "Broadband vibration velocity at drivetrain measurement point.",
+      "normal_range": "1.0–7.0",
+      "failure_threshold": ">10 mm/s — ISO 10816 Class 3 alert; >18 — danger",
+      "pm_importance": "Broadband vibration increase is the first symptom of any mechanical degradation."
+    },
+    "FFT_Peak": {
+      "type": "float",
+      "unit": "mm/s",
+      "description": "Dominant frequency component peak from FFT vibration analysis.",
+      "normal_range": "0.5–10.0",
+      "failure_threshold": ">15 mm/s at characteristic fault frequencies",
+      "pm_importance": "Frequency content identifies specific fault types (BPFO, BPFI, FTF for bearings)."
+    },
+    "RMS_Vibration": {
+      "type": "float",
+      "unit": "mm/s",
+      "description": "Root mean square vibration velocity.",
+      "normal_range": "0.5–6.0",
+      "failure_threshold": ">8 mm/s — elevated; >14 — critical",
+      "pm_importance": "RMS is the ISO-standard severity measure; trend analysis detects bearing wear early."
+    },
+    "Bearing_Temperature": {
+      "type": "float",
+      "unit": "°C",
+      "description": "Temperature of main drive or wheel bearing housing.",
+      "normal_range": "50–90",
+      "failure_threshold": ">110°C — lubrication failure; >130°C — seizure imminent",
+      "pm_importance": "Friction from worn bearings generates heat; temperature rise lags vibration."
+    },
+    "Bearing_Vibration": {
+      "type": "float",
+      "unit": "mm/s (RMS)",
+      "description": "Vibration signal filtered to bearing fault frequency bands.",
+      "normal_range": "0.3–4.0",
+      "failure_threshold": ">7 mm/s — significant defect; >12 — replacement required",
+      "pm_importance": "Most sensitive early-warning signal for bearing degradation."
+    },
+    "Acoustic_Noise_Level": {
+      "type": "float",
+      "unit": "dB(A)",
+      "description": "Overall acoustic emission measured at 1 meter from machine.",
+      "normal_range": "70–95",
+      "failure_threshold": ">100 dB — abnormal mechanical noise; >105 — urgent",
+      "pm_importance": "Knocking or grinding sounds appear before structural failures."
+    },
+    "Ultrasonic_Emission": {
+      "type": "float",
+      "unit": "dBµV (index 0–100)",
+      "description": "Ultrasonic acoustic emission level (40–100 kHz band) for early bearing/gear defect detection.",
+      "normal_range": "0–30",
+      "failure_threshold": ">50 — defect present; >70 — advanced wear",
+      "pm_importance": "Ultrasonic emission detects micro-cracks and early spalling weeks before vibration rises."
+    },
+
+    "Last_Service_Days": {
+      "type": "float",
+      "unit": "days",
+      "description": "Days since last scheduled preventive maintenance.",
+      "normal_range": "0–90",
+      "failure_threshold": ">90 days — overdue service",
+      "pm_importance": "Overdue service dramatically increases failure probability across all systems."
+    },
+    "Last_Service_Hours": {
+      "type": "float",
+      "unit": "hours",
+      "description": "Engine hours accumulated since last service.",
+      "normal_range": "0–500",
+      "failure_threshold": ">500 h — overdue by typical PM interval",
+      "pm_importance": "Hour-based trigger for oil, filter, and lubrication service needs."
+    },
+    "Lubrication_Status": {
+      "type": "string",
+      "unit": "—",
+      "description": "Qualitative assessment of lubrication system: Good, Fair, Poor.",
+      "normal_range": "Good, Fair",
+      "failure_threshold": "Poor — lubrication-related failures imminent",
+      "pm_importance": "Poor lubrication rapidly accelerates bearing and gear surface fatigue."
+    },
+    "Filter_Age": {
+      "type": "float",
+      "unit": "hours",
+      "description": "Hours since last air/fuel/hydraulic filter replacement.",
+      "normal_range": "0–500",
+      "failure_threshold": ">500 h — replacement overdue",
+      "pm_importance": "Old filters increase system contamination and restriction."
+    },
+    "Oil_Age": {
+      "type": "float",
+      "unit": "hours",
+      "description": "Hours since last engine oil change.",
+      "normal_range": "0–500",
+      "failure_threshold": ">500 h — oil degradation; TBN likely depleted",
+      "pm_importance": "Degraded oil increases engine wear rate by 3–5× compared to fresh oil."
+    },
+    "Previous_Failure_Count": {
+      "type": "integer",
+      "unit": "count",
+      "description": "Total count of prior failures recorded for this machine.",
+      "normal_range": "0–20",
+      "failure_threshold": ">5 — recurrent failure pattern; systematic inspection needed",
+      "pm_importance": "Prior failures indicate structural or design-life issues that predict future events."
+    },
+    "Parts_Replaced": {
+      "type": "string",
+      "unit": "—",
+      "description": "Most recently replaced component category: None, Filters, Oil, Belts, Bearings, Pump, Tires.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Replacement resets component degradation; needed to avoid false positives post-maintenance."
+    },
+    "Warranty_Status": {
+      "type": "string",
+      "unit": "—",
+      "description": "Machine warranty status: Active or Expired.",
+      "normal_range": "categorical",
+      "failure_threshold": "N/A",
+      "pm_importance": "Expired warranty machines may have deferred maintenance; correlates with failure rate."
+    },
+
+    "Active_DTC": {
+      "type": "string",
+      "unit": "—",
+      "description": "Pipe-separated list of active Diagnostic Trouble Codes (J1939 SAE format).",
+      "normal_range": "None",
+      "failure_threshold": "Any active DTC — investigate",
+      "pm_importance": "DTCs directly encode ECU-detected faults; strong label for multi-label classification."
+    },
+    "Warning_Level": {
+      "type": "string",
+      "unit": "—",
+      "description": "Synthesized warning severity: None, Low, Medium, High, Critical.",
+      "normal_range": "None, Low",
+      "failure_threshold": "High/Critical — immediate action required",
+      "pm_importance": "Pre-computed severity label useful as auxiliary training signal."
+    },
+    "Error_Code": {
+      "type": "string",
+      "unit": "—",
+      "description": "Primary DTC code string (most severe active code).",
+      "normal_range": "None",
+      "failure_threshold": "Any code — system anomaly",
+      "pm_importance": "Enables rule-based baseline comparison with ML predictions."
+    },
+    "Fault_Category": {
+      "type": "string",
+      "unit": "—",
+      "description": "System category of active fault: Mechanical, Hydraulic, Electrical, Thermal, None.",
+      "normal_range": "None",
+      "failure_threshold": "Any non-None value",
+      "pm_importance": "Subsystem routing label; useful for hierarchical classification."
+    },
+
+    "Failure_Within_24h": {
+      "type": "integer (binary)",
+      "unit": "0 or 1",
+      "description": "Label: 1 if a failure will occur within the next 24 hours.",
+      "normal_range": "0 (vast majority)",
+      "failure_threshold": "1 — urgent intervention required",
+      "pm_importance": "PRIMARY LABEL for urgent failure prediction (binary classifier)."
+    },
+    "Failure_Within_7d": {
+      "type": "integer (binary)",
+      "unit": "0 or 1",
+      "description": "Label: 1 if a failure will occur within the next 7 days.",
+      "normal_range": "0 (majority)",
+      "failure_threshold": "1 — schedule maintenance within 7 days",
+      "pm_importance": "PRIMARY LABEL for week-ahead maintenance scheduling."
+    },
+    "Remaining_Useful_Life": {
+      "type": "float",
+      "unit": "hours",
+      "description": "Estimated hours until the next failure event. Null when no failure arc is active.",
+      "normal_range": "null (healthy) or 0–1,440 h",
+      "failure_threshold": "<24 h — critical",
+      "pm_importance": "REGRESSION TARGET for continuous RUL prediction (survival analysis, LSTM-RUL)."
+    },
+    "Maintenance_Action": {
+      "type": "string",
+      "unit": "—",
+      "description": "Recommended maintenance urgency: Routine, Soon, Urgent.",
+      "normal_range": "Routine",
+      "failure_threshold": "Urgent — immediate action",
+      "pm_importance": "Multi-class classification target for maintenance prioritization systems."
+    },
+    "Failure_Type": {
+      "type": "string",
+      "unit": "—",
+      "description": "Type of impending or active failure: one of 11 failure classes or 'No Failure'.",
+      "normal_range": "No Failure",
+      "failure_threshold": "Any non-'No Failure' value",
+      "pm_importance": "MULTI-CLASS LABEL for fault type identification — enables targeted repair dispatch."
+    }
+  }
+}
