@@ -5,15 +5,29 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Sun, Moon, Menu, X, Cpu, LogIn, Activity } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
+import { supabase } from "@/lib/db";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
+
+    // Initial session check
+    supabase.auth.getSession().then((res) => {
+      setUser(res.data?.session?.user || null);
+    });
+
+    // Handle authentication state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Close mobile menu on route change
@@ -21,12 +35,18 @@ export default function Navbar() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
+  const isHomePage = pathname === "/";
+  
   const navItems = [
-    { name: "Features", href: "/#features" },
-    { name: "How It Works", href: "/#how-it-works" },
-    { name: "Prediction Engine", href: "/#stats" },
-    { name: "Dashboard", href: "/dashboard" },
+    { name: "Features", href: isHomePage ? "#features" : "/#features" },
+    { name: "How It Works", href: isHomePage ? "#how-it-works" : "/#how-it-works" },
+    { name: "Prediction Engine", href: isHomePage ? "#stats" : "/#stats" },
   ];
+
+  // Only display Dashboard if user is logged in
+  if (user) {
+    navItems.push({ name: "Dashboard", href: "/dashboard" });
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full bg-background/85 dark:bg-background/85 border-b border-border-mute backdrop-blur-md md:bg-transparent md:backdrop-blur-none md:border-b-0 md:pt-4 md:pb-1 md:px-6 no-print">
@@ -81,18 +101,34 @@ export default function Navbar() {
 
             {/* Desktop Auth Buttons */}
             <div className="hidden md:flex items-center gap-2">
-              <Link
-                href="/login"
-                className="rounded-full border border-zinc-200 dark:border-zinc-800 px-4 py-1.5 text-[11px] font-medium text-zinc-555 dark:text-zinc-400 hover:text-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/dashboard"
-                className="rounded-full bg-zinc-950 dark:bg-zinc-50 px-4.5 py-1.5 text-[11px] font-bold text-white dark:text-black transition-transform duration-200 hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-95"
-              >
-                Get Started
-              </Link>
+              {user ? (
+                <>
+                  <span className="text-[10px] font-mono text-text-muted truncate max-w-[120px]" title={user.email}>
+                    {user.email}
+                  </span>
+                  <Link
+                    href="/dashboard"
+                    className="rounded-full bg-zinc-950 dark:bg-zinc-50 px-4.5 py-1.5 text-[11px] font-bold text-white dark:text-black transition-transform duration-200 hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-95"
+                  >
+                    Console Hub
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="rounded-full border border-zinc-200 dark:border-zinc-800 px-4 py-1.5 text-[11px] font-medium text-zinc-555 dark:text-zinc-400 hover:text-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="rounded-full bg-zinc-950 dark:bg-zinc-50 px-4.5 py-1.5 text-[11px] font-bold text-white dark:text-black transition-transform duration-200 hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-95"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile hamburger button */}
@@ -132,18 +168,34 @@ export default function Navbar() {
               })}
               <div className="border-t border-border-mute my-2" />
               <div className="flex flex-col gap-2 pt-1">
-                <Link
-                  href="/login"
-                  className="flex items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 text-xs font-medium text-zinc-555 dark:text-zinc-455 hover:text-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="flex items-center justify-center rounded-full bg-zinc-950 dark:bg-zinc-50 px-4 py-2.5 text-xs font-bold text-white dark:text-black transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200"
-                >
-                  Get Started
-                </Link>
+                {user ? (
+                  <>
+                    <div className="text-[10px] font-mono text-center text-text-muted select-none py-1 truncate">
+                      Logged in: {user.email}
+                    </div>
+                    <Link
+                      href="/dashboard"
+                      className="flex items-center justify-center rounded-full bg-zinc-950 dark:bg-zinc-50 px-4 py-2.5 text-xs font-bold text-white dark:text-black transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                    >
+                      Console Hub
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="flex items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-800 px-4 py-2.5 text-xs font-medium text-zinc-555 dark:text-zinc-455 hover:text-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="flex items-center justify-center rounded-full bg-zinc-950 dark:bg-zinc-50 px-4 py-2.5 text-xs font-bold text-white dark:text-black transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                    >
+                      Get Started
+                    </Link>
+                  </>
+                )}
               </div>
             </nav>
           </div>

@@ -81,6 +81,10 @@
   --color-text-muted: var(--text-muted);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: var(--background);
   background-image: radial-gradient(circle at 1px 1px, var(--border-mute) 1px, transparent 0);
