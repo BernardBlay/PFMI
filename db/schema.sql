@@ -102,3 +102,52 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
+-- Enable pgcrypto extension for password encryption
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Insert preset operator04@pfmi.ai (Admin)
+INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data, role, aud, created_at, updated_at)
+VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  'operator04@pfmi.ai',
+  crypt('demo-operator-pass', gen_salt('bf', 10)),
+  NOW(),
+  '{"role": "Admin", "full_name": "operator04"}'::jsonb,
+  'authenticated',
+  'authenticated',
+  NOW(),
+  NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert preset miller@pfmi.ai (Lead Tech)
+INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data, role, aud, created_at, updated_at)
+VALUES (
+  '00000000-0000-0000-0000-000000000002',
+  'miller@pfmi.ai',
+  crypt('demo-operator-pass', gen_salt('bf', 10)),
+  NOW(),
+  '{"role": "Lead Tech", "full_name": "miller"}'::jsonb,
+  'authenticated',
+  'authenticated',
+  NOW(),
+  NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert preset chen@pfmi.ai (Sys Eng)
+INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data, role, aud, created_at, updated_at)
+VALUES (
+  '00000000-0000-0000-0000-000000000003',
+  'chen@pfmi.ai',
+  crypt('demo-operator-pass', gen_salt('bf', 10)),
+  NOW(),
+  '{"role": "Sys Eng", "full_name": "chen"}'::jsonb,
+  'authenticated',
+  'authenticated',
+  NOW(),
+  NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+
