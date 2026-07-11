@@ -1,0 +1,130 @@
+{
+  "machine_category": "bulldozer",
+  "model_version": "bulldozer-xgb-v1",
+  "features": [
+    "material_density",
+    "ambient_temp_C",
+    "Vibration_Engine_RMS",
+    "Vibration_Engine_Peak",
+    "Vibration_Undercarriage_RMS",
+    "Vibration_Undercarriage_Peak",
+    "Hydraulic_Pressure_Implement",
+    "Return_Pressure",
+    "Hydraulic_Oil_Temp",
+    "Engine_Coolant_Temp",
+    "Differential_Pressure_Filter",
+    "Oil_Particle_Count",
+    "Track_Slip_Ratio",
+    "Engine_Load_Factor",
+    "Fuel_Consumption_Rate",
+    "Drawbar_Pull_Force"
+  ],
+  "derived": [
+    "crest_factor_engine",
+    "crest_factor_undercarriage",
+    "hydraulic_efficiency",
+    "thermal_margin",
+    "specific_fuel",
+    "load_per_pull"
+  ],
+  "failure_modes": [
+    "cutting_edge_wear",
+    "undercarriage_wear",
+    "final_drive_wear",
+    "hydraulic_seal_failure",
+    "filter_clogging",
+    "none"
+  ],
+  "threshold": 0.8119,
+  "trained_at": "2026-07-11",
+  "targets": {
+    "health_state": [
+      "normal",
+      "degrading",
+      "imminent_failure"
+    ],
+    "failure_mode": [
+      "cutting_edge_wear",
+      "undercarriage_wear",
+      "final_drive_wear",
+      "hydraulic_seal_failure",
+      "filter_clogging",
+      "none"
+    ]
+  },
+  "reliable_modes": [
+    "cutting_edge_wear",
+    "hydraulic_seal_failure",
+    "none"
+  ],
+  "mode_confidence_threshold": 0.4344,
+  "metrics": {
+    "health_state": {
+      "accuracy": 0.7402,
+      "roc_auc_ovr": 0.8878,
+      "pr_auc": 0.8282,
+      "per_class": {
+        "normal": {
+          "precision": 0.796,
+          "recall": 0.843,
+          "f1": 0.8188
+        },
+        "degrading": {
+          "precision": 0.5552,
+          "recall": 0.5969,
+          "f1": 0.5753
+        },
+        "imminent_failure": {
+          "precision": 0.8741,
+          "recall": 0.577,
+          "f1": 0.6951
+        }
+      }
+    },
+    "failure_mode": {
+      "accuracy": 0.7212,
+      "roc_auc_ovr": 0.694,
+      "pr_auc": 0.4216,
+      "per_class": {
+        "cutting_edge_wear": {
+          "precision": 0.5059,
+          "recall": 0.5325,
+          "f1": 0.5189
+        },
+        "undercarriage_wear": {
+          "precision": 0.0105,
+          "recall": 0.008,
+          "f1": 0.0091
+        },
+        "final_drive_wear": {
+          "precision": 0.0556,
+          "recall": 0.0737,
+          "f1": 0.0633
+        },
+        "hydraulic_seal_failure": {
+          "precision": 0.9677,
+          "recall": 0.75,
+          "f1": 0.8451
+        },
+        "filter_clogging": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0
+        },
+        "none": {
+          "precision": 0.8577,
+          "recall": 0.9195,
+          "f1": 0.8876
+        }
+      }
+    },
+    "evaluation_method": "leave-one-session-out (GroupKFold, n_splits=10), out-of-fold predictions concatenated across all sessions",
+    "rolling_feature_ablation_accuracy_delta": -0.0131,
+    "reliable_recall_cutoff": 0.3,
+    "noise_modes_excluded": [
+      "undercarriage_wear",
+      "final_drive_wear",
+      "filter_clogging"
+    ]
+  }
+}

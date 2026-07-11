@@ -1,0 +1,21 @@
+# virtual envs (ml-service/.venv, training/.venv, ...)
+.venv/
+
+# python bytecode
+__pycache__/
+*.pyc
+
+# secrets - never commit real env vars, .env.example is the template
+.env
+
+# jupyter checkpoint noise - keep the real .ipynb, drop the autosave copies
+.ipynb_checkpoints/
+
+# stray logs from local dev servers
+*.log
+
+# scratch notebooks - never intentionally committed
+Untitled*.ipynb
+
+# models/ is intentionally NOT ignored - committed for now so the whole
+# team has the trained artifacts without running the notebook themselves.

@@ -1,0 +1,14 @@
+{
+  "machine_category": "generic",
+  "model_version": "generic-xgb-v1-PLACEHOLDER",
+  "features": ["air_temp", "process_temp", "rpm", "torque", "tool_wear", "type_num"],
+  "derived": ["power_w", "temp_diff", "wear_x_torque"],
+  "failure_modes": ["failure", "none"],
+  "threshold": 0.45,
+  "trained_at": "2026-07-11",
+  "metrics": {
+    "note": "PLACEHOLDER FIXTURE - trained on random synthetic data, not AI4I 2020. Replace with the real baseline model.joblib before scoring anything for real.",
+    "roc_auc": null,
+    "pr_auc": null
+  }
+}
