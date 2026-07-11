@@ -1,0 +1,246 @@
+{
+  "title": "PFMI ML Engineering Guide — Wheel Loader Predictive Maintenance",
+  "version": "1.0.0",
+
+  "suggested_ml_targets": {
+    "primary": [
+      {
+        "column": "Failure_Within_24h",
+        "task": "Binary Classification",
+        "model_types": ["XGBoost", "LightGBM", "Random Forest", "LSTM", "Transformer"],
+        "metric": "F2-score (recall-weighted), ROC-AUC, Precision-Recall AUC",
+        "note": "Heavy class imbalance expected (~1–3% positive). Use SMOTE, class_weight, or focal loss."
+      },
+      {
+        "column": "Failure_Within_7d",
+        "task": "Binary Classification",
+        "model_types": ["XGBoost", "LightGBM", "LSTM"],
+        "metric": "F1-score, ROC-AUC",
+        "note": "Higher positive rate (~5–10%). Good for scheduling models."
+      },
+      {
+        "column": "Remaining_Useful_Life",
+        "task": "Regression / Survival Analysis",
+        "model_types": ["DeepSurv", "LSTM-RUL", "Transformer-RUL", "Random Survival Forest"],
+        "metric": "MAE (hours), RMSE, C-index (survival)",
+        "note": "Null values during healthy periods — use censoring-aware loss (Cox PH) or mask nulls."
+      },
+      {
+        "column": "Failure_Type",
+        "task": "Multi-class Classification (12 classes)",
+        "model_types": ["XGBoost", "LightGBM", "LSTM + softmax head"],
+        "metric": "Macro F1, Weighted F1, Confusion Matrix",
+        "note": "Severe class imbalance — 'No Failure' dominates. Sub-sample or use one-vs-rest."
+      },
+      {
+        "column": "Maintenance_Action",
+        "task": "Ordinal / Multi-class Classification (3 classes)",
+        "model_types": ["Gradient Boosting", "Neural Net"],
+        "metric": "Accuracy, Macro F1",
+        "note": "Ordinal structure: Routine < Soon < Urgent. Consider ordinal regression."
+      }
+    ],
+    "auxiliary": [
+      "Warning_Level (ordinal classification)",
+      "Fault_Category (multi-class)",
+      "Active_DTC (multi-label classification — pipe-split codes)"
+    ]
+  },
+
+  "recommended_train_test_split": {
+    "strategy": "Time-based split (never random shuffle for time-series)",
+    "train": "2022-01-01 to 2024-06-30 (~70%)",
+    "validation": "2024-07-01 to 2024-12-31 (~15%)",
+    "test": "2025-01-01 to 2025-12-31 (~15%)",
+    "note": "Also consider per-machine hold-out to test generalization to unseen machines. Do NOT use random train/test split — future data leaks into training set."
+  },
+
+  "suggested_sequence_length": {
+    "LSTM_Transformer": {
+      "recommended": 288,
+      "unit": "time steps (5-min intervals)",
+      "equals": "24 hours of history",
+      "rationale": "Most failure precursors appear 6–24 hours before event. 288 steps captures full operational day."
+    },
+    "short_context": {
+      "recommended": 72,
+      "unit": "time steps",
+      "equals": "6 hours",
+      "rationale": "Sufficient for fast-developing failures (Electrical, Fuel System)."
+    },
+    "long_context": {
+      "recommended": 2016,
+      "unit": "time steps",
+      "equals": "7 days",
+      "rationale": "Required for slow degradation trends (Bearing Wear, Transmission)."
+    }
+  },
+
+  "preprocessing_steps": [
+    {
+      "step": 1,
+      "name": "Parse Timestamps",
+      "detail": "Convert ISO-8601 Timestamp to datetime; extract hour_of_day, day_of_week, month, season as cyclical sin/cos features."
+    },
+    {
+      "step": 2,
+      "name": "Sort by Machine_ID and Timestamp",
+      "detail": "Essential for correct time-series ordering before windowing."
+    },
+    {
+      "step": 3,
+      "name": "Handle Missing Values",
+      "detail": "Sensor missings (~0.3% per column): forward-fill within machine sessions (max 3 steps), then flag with binary missing indicator column (e.g., Coolant_Temperature_missing). Do NOT impute label columns."
+    },
+    {
+      "step": 4,
+      "name": "Detect and Cap Faulty Sensor Readings",
+      "detail": "Values outside 3× IQR per machine per column may be faulty sensors. Clip to machine-specific 1st–99th percentile. Add Faulty_Sensor_Flag binary column."
+    },
+    {
+      "step": 5,
+      "name": "Encode Categoricals",
+      "detail": "Manufacturer, Model: target-encode or embed. Terrain_Type, Weather, Working_Mode, Shift: ordinal or one-hot. Gear: map {1,2,3,4,N,R} → {1,2,3,4,0,-1}. Lubrication_Status: {Good:0, Fair:1, Poor:2}."
+    },
+    {
+      "step": 6,
+      "name": "Engineer Lag & Rolling Features",
+      "detail": "Per machine: rolling mean, std, min, max over {12, 72, 288} steps for: Overall_Vibration, Coolant_Temperature, Hydraulic_Pressure, Bearing_Temperature, Oil_Pressure, Turbo_Boost. Rate of change (first derivative) for same columns."
+    },
+    {
+      "step": 7,
+      "name": "Normalize / Scale",
+      "detail": "RobustScaler (median/IQR) preferred over StandardScaler due to outlier contamination from faulty sensors. Fit scaler on TRAIN set only; apply to val/test."
+    },
+    {
+      "step": 8,
+      "name": "Handle Class Imbalance",
+      "detail": "Failure_Within_24h: ~2% positive. Options: (a) class_weight='balanced'; (b) SMOTE on tabular features; (c) focal loss (gamma=2) for neural nets; (d) oversample failure windows."
+    },
+    {
+      "step": 9,
+      "name": "Create Sliding Windows for Sequence Models",
+      "detail": "Stride=1 for training data density. For production inference, stride=1 (predict every 5 minutes). Window must not cross maintenance events (maintenance resets degradation state)."
+    },
+    {
+      "step": 10,
+      "name": "Censor RUL for Healthy Records",
+      "detail": "For survival models: records with Remaining_Useful_Life=null are right-censored observations (machine still healthy at observation time)."
+    }
+  ],
+
+  "missing_value_patterns": {
+    "rate_per_column": "~0.3% randomly (sensor transmission loss)",
+    "types": [
+      {
+        "pattern": "Random Missing",
+        "cause": "CAN bus packet loss, telematics dropouts",
+        "affected": "All numeric sensor columns",
+        "rate": "0.3%"
+      },
+      {
+        "pattern": "Sustained Missing (Faulty Sensor)",
+        "cause": "Sensor hardware failure — column stuck at NaN for hours",
+        "affected": "Specific columns per machine episode",
+        "rate": "0.1% of sensor-machine combinations per year"
+      },
+      {
+        "pattern": "Stuck Value",
+        "cause": "Sensor frozen at last reading",
+        "affected": "Coolant_Temperature, Oil_Pressure, Hydraulic_Pressure",
+        "rate": "0.05%",
+        "detection": "Std(rolling 12 steps) < 0.01"
+      },
+      {
+        "pattern": "Systematic Night Missing",
+        "cause": "Some older telematics units stop reporting during non-operational hours",
+        "affected": "All columns, machines at specific job sites",
+        "rate": "Rare (5% of machines)"
+      }
+    ]
+  },
+
+  "sensor_sampling_rates": {
+    "dataset_interval": "5 minutes (300 seconds)",
+    "actual_sensor_rates_onboard": {
+      "Engine_RPM": "100 ms (10 Hz) — averaged to 5-min",
+      "Vibration_sensors": "1 ms (1 kHz) — RMS and FFT computed onboard, sent at 5-min",
+      "Temperature_sensors": "1 second — averaged to 5-min",
+      "Pressure_sensors": "100 ms — averaged to 5-min",
+      "GPS": "1 second — last value at 5-min",
+      "Tire_Pressure": "30 seconds — averaged to 5-min",
+      "Battery_Voltage": "1 second — averaged to 5-min"
+    },
+    "note": "High-frequency signals (vibration, FFT) are pre-processed on the edge device before transmission. Only summary statistics reach the cloud dataset."
+  },
+
+  "anomaly_detection_features": [
+    {
+      "feature": "Z-score of Overall_Vibration (rolling 72-step baseline)",
+      "why": "Detects vibration spikes relative to machine-specific baseline — catches bearing defects"
+    },
+    {
+      "feature": "Rate of change of Coolant_Temperature (delta per 12 steps)",
+      "why": "Rapid temperature rise indicates cooling system failure onset"
+    },
+    {
+      "feature": "Hydraulic_Pressure vs Pump_Efficiency ratio",
+      "why": "Divergence between pressure and efficiency indicates pump internal bypass"
+    },
+    {
+      "feature": "Mahalanobis distance across [Coolant_Temp, Oil_Pressure, Vibration, Hyd_Pressure]",
+      "why": "Multivariate anomaly capturing correlated sensor drift not visible in univariate checks"
+    },
+    {
+      "feature": "Autoencoder reconstruction error on last 288-step window",
+      "why": "Unsupervised baseline; high reconstruction error = operating outside training distribution"
+    },
+    {
+      "feature": "Isolation Forest on rolling feature vector",
+      "why": "Robust to mixed-type features; no label required for deployment"
+    },
+    {
+      "feature": "Turbo_Boost / Engine_Load ratio",
+      "why": "Ratio should be stable; decline indicates turbo efficiency loss"
+    },
+    {
+      "feature": "Cross-tire pressure imbalance (max - min of 4 tire pressures)",
+      "why": "Asymmetric loss indicates puncture or bead failure on specific tire"
+    },
+    {
+      "feature": "Ultrasonic_Emission rolling 95th percentile",
+      "why": "Ultrasonic is the earliest detectable signal for bearing and gear defects"
+    },
+    {
+      "feature": "Fuel_Rate / Engine_Load residual",
+      "why": "Excess fuel consumption at given load indicates combustion inefficiency or injector drip"
+    }
+  ],
+
+  "feature_importance_explanations": {
+    "Overall_Vibration": "Integrates all rotating machinery health into one signal — rises weeks before most mechanical failures.",
+    "Bearing_Vibration": "Frequency-filtered signal isolating bearing fault frequencies — most sensitive early indicator for Bearing Wear.",
+    "Ultrasonic_Emission": "Detects micro-cracks and micro-spalling at 40–100 kHz — leads visible damage by 2–6 weeks.",
+    "Coolant_Temperature": "Rising coolant temp with stable load = cooling system degrading; crosses threshold hours before engine shutdown.",
+    "Oil_Pressure": "Drops indicate pump wear or oil loss; low pressure is the mechanism of catastrophic engine bearing failure.",
+    "Hydraulic_Pressure": "Directly tracks pump output; sustained drop = worn pump or internal bypass — precedes Hydraulic Pump Failure.",
+    "Pump_Efficiency": "Computed ratio capturing slow pump degradation; efficiency drops before pressure drops.",
+    "Turbo_Boost": "Boost decline at full load indicates compressor wheel erosion or seal bypass — Turbo Failure early warning.",
+    "Exhaust_Temperature": "Rising EGT at constant load indicates combustion problems or DPF restriction.",
+    "Transmission_Temperature": "Thermal stress of transmission fluid directly predicts clutch pack failure timelines.",
+    "Brake_Temperature": "Brake temp spikes precede brake fade; pattern differs from normal braking at identical loads.",
+    "Engine_Hours": "Primary machine life indicator — failure rate is exponential after 15,000 hours.",
+    "Oil_Age": "Old oil loses viscosity index improvers; bearing wear accelerates sharply after 500 hours.",
+    "Last_Service_Days": "Service interval adherence is the single most impactful maintenance variable for failure prevention.",
+    "Ambient_Temperature": "Hot environments reduce cooling efficiency and accelerate rubber seal degradation across all systems.",
+    "Engine_Load": "Load is the universal wear accelerant — all degradation rates scale with load fraction.",
+    "Dust_Level": "Dust ingestion through worn seals is the #1 cause of hydraulic component failure in mining environments.",
+    "Operator_Experience": "Experienced operators cause 30–50% fewer thermal stress events — a key confounding variable.",
+    "Tire_Pressure_FL/FR/RL/RR": "Pressure loss triggers a thermal-mechanical cascade leading to blowout within hours.",
+    "Filter_Age": "Old air filters starve engines; old hydraulic filters allow particulate contamination of pumps.",
+    "Previous_Failure_Count": "Machines with 3+ prior failures are 2–3× more likely to fail again — structural or design-life issues.",
+    "FFT_Peak": "Dominant spectral peak identifies specific fault mechanisms (e.g., 1× shaft imbalance, 8× gear mesh).",
+    "Fuel_Pressure": "Rail pressure drop indicates pump wear or injector leakage — direct Fuel System Failure precursor.",
+    "Air_Filter_Restriction": "High restriction reduces combustion air, raising EGT and reducing power before the engine ECU derate."
+  }
+}
