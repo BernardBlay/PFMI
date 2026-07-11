@@ -1,0 +1,275 @@
+.hero {
+  position: relative;
+  min-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(ellipse 100% 60% at 50% -10%, rgba(59, 130, 246, 0.08) 0%, transparent 70%),
+              var(--bg-primary);
+  padding: 6rem 1.5rem 3rem;
+}
+
+/* Grid */
+.grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 74, 198, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 74, 198, 0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 10%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Ambient Orbs */
+.orb1, .orb2, .orb3 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(140px);
+  pointer-events: none;
+}
+
+.orb1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(0, 74, 198, 0.08) 0%, transparent 70%);
+  top: -150px;
+  right: -100px;
+  animation: float 9s ease-in-out infinite;
+}
+
+.orb2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.06) 0%, transparent 70%);
+  bottom: -80px;
+  left: -80px;
+  animation: float-reverse 7s ease-in-out infinite;
+}
+
+.orb3 {
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+  top: 40%;
+  left: 60%;
+  animation: float 11s ease-in-out infinite 2s;
+}
+
+/* Content */
+.content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 800px;
+  gap: 1.5rem;
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.04);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--primary-light);
+  animation: fadeInUp 0.6s ease both;
+}
+
+.badgeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: ping 1.5s ease-in-out infinite;
+}
+
+/* Headline */
+.headline {
+  font-size: clamp(2.2rem, 5.5vw, 3.8rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  animation: fadeInUp 0.7s ease 0.15s both;
+}
+
+.gradientWord {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+}
+
+/* Subtitle */
+.subtitle {
+  font-size: clamp(0.95rem, 2vw, 1.05rem);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 600px;
+  animation: fadeInUp 0.7s ease 0.28s both;
+}
+
+.brDesktop {
+  display: none;
+}
+@media (min-width: 640px) {
+  .brDesktop { display: block; }
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: fadeInUp 0.7s ease 0.4s both;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--gradient-brand);
+  border-radius: var(--radius-sm);
+  transition: all var(--ease-normal);
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.25);
+}
+
+.btnPrimary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--ease-normal);
+}
+
+.btnSecondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+/* Stats bar */
+.statsBar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(10, 22, 40, 0.7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.2rem 2rem;
+  backdrop-filter: blur(12px);
+  margin-top: 0.5rem;
+  animation: fadeInUp 0.7s ease 0.52s both;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.4rem 2rem;
+  position: relative;
+}
+
+.statDivider {
+  position: absolute;
+  right: 0;
+  top: 10%;
+  height: 80%;
+  width: 1px;
+  background: var(--border);
+}
+
+.statValue {
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+  font-weight: 800;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+}
+
+.statLabel {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 0.2rem;
+  white-space: nowrap;
+}
+
+/* Scroll indicator */
+.scrollIndicator {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 1s ease 1.2s both;
+}
+
+.scrollIndicator span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.scrollMouse {
+  width: 22px;
+  height: 34px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 11px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 5px;
+}
+
+.scrollWheel {
+  width: 3px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 2px;
+  animation: float 1.4s ease-in-out infinite;
+}
+
+@media (max-width: 640px) {
+  .statsBar { padding: 1rem 0.5rem; }
+  .statItem { padding: 0.4rem 1rem; }
+  .scrollIndicator { display: none; }
+}
