@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 export async function GET() {
-  // Mock equipment data
-  return NextResponse.json([
-    { id: "EQ-101", name: "Hydraulic Pump A", status: "Healthy", healthScore: 94, lastService: "2026-06-15" },
-    { id: "EQ-102", name: "Cooling Fan B", status: "Warning", healthScore: 72, lastService: "2026-05-10" },
-    { id: "EQ-103", name: "Rotary Motor C", status: "Critical", healthScore: 45, lastService: "2026-07-01" },
-  ]);
+  const data = await db.getEquipment();
+  return NextResponse.json(data);
 }
 
 export async function POST(req: Request) {

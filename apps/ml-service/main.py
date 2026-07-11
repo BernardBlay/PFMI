@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict
 from model.predict import predict_rul
-from ocr import run_ocr
+from ocr import run_ocr, extract_structured_logs
 
 app = FastAPI(title="PFMI ML Prediction Service", version="1.0.0")
 
@@ -29,6 +29,10 @@ def predict(data: SensorData):
 def ocr_pipeline(image_path: str):
     try:
         text = run_ocr(image_path)
-        return {"extracted_text": text}
+        structured = extract_structured_logs(text)
+        return {
+            "raw_text": text,
+            "structured_data": structured
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

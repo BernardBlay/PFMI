@@ -1,9 +1,20 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 export async function GET() {
-  // Mock alerts data
-  return NextResponse.json([
-    { id: "ALT-01", equipmentName: "Rotary Motor C", severity: "High", message: "Bearing vibration exceeds safe threshold", timestamp: "2026-07-11T10:30:00Z" },
-    { id: "ALT-02", equipmentName: "Cooling Fan B", severity: "Medium", message: "Temperature anomaly detected", timestamp: "2026-07-11T12:00:00Z" },
-  ]);
+  const data = await db.getAlerts();
+  return NextResponse.json(data);
+}
+
+export async function POST(req: Request) {
+  try {
+    const { id } = await req.json();
+    if (!id) {
+      return NextResponse.json({ error: "Missing alert ID" }, { status: 400 });
+    }
+    const success = await db.resolveAlert(id);
+    return NextResponse.json({ success });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

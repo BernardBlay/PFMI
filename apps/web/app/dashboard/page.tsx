@@ -20,19 +20,44 @@ interface Alert {
 export default function Dashboard() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = async () => {
+    try {
+      const [eqRes, alertRes] = await Promise.all([
+        fetch("/api/equipment"),
+        fetch("/api/alerts")
+      ]);
+      const eqData = await eqRes.json();
+      const alertData = await alertRes.json();
+      setEquipment(eqData);
+      setAlerts(alertData);
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Mock fetch
-    setEquipment([
-      { id: "EQ-101", name: "Hydraulic Pump A", status: "Healthy", healthScore: 94 },
-      { id: "EQ-102", name: "Cooling Fan B", status: "Warning", healthScore: 72 },
-      { id: "EQ-103", name: "Rotary Motor C", status: "Critical", healthScore: 45 },
-    ]);
-    setAlerts([
-      { id: "ALT-01", equipmentName: "Rotary Motor C", severity: "High", message: "Bearing vibration exceeds safe threshold" },
-      { id: "ALT-02", equipmentName: "Cooling Fan B", severity: "Medium", message: "Temperature anomaly detected" },
-    ]);
+    fetchData();
   }, []);
+
+  const resolveAlert = async (id: string) => {
+    try {
+      const res = await fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        // Refresh alerts and equipment states
+        fetchData();
+      }
+    } catch (err) {
+      console.error("Failed to resolve alert:", err);
+    }
+  };
 
   return (
     <main className="min-h-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)]">
@@ -43,18 +68,30 @@ export default function Dashboard() {
         {/* Alerts Grid */}
         <section className="mb-12">
           <h2 className="text-xl font-bold mb-4 text-red-400">Active Alerts</h2>
-          <div className="grid gap-4">
-            {alerts.map(alert => (
-              <div key={alert.id} className="p-4 rounded-lg bg-[var(--bg-card)] border border-red-500/20 flex justify-between items-center">
-                <div>
-                  <span className="font-bold text-red-400 mr-2">[{alert.severity}]</span>
-                  <span className="font-semibold">{alert.equipmentName}</span>
-                  <p className="text-[var(--text-secondary)] text-sm mt-1">{alert.message}</p>
+          {alerts.length === 0 ? (
+            <p className="text-[var(--text-secondary)]">No active alerts.</p>
+          ) : (
+            <div className="grid gap-4">
+              {alerts.map(alert => (
+                <div key={alert.id} className="p-4 rounded-lg bg-[var(--bg-card)] border border-red-500/20 flex justify-between items-center">
+                  <div>
+                    <span className="font-bold text-red-400 mr-2">[{alert.severity}]</span>
+                    <span className="font-semibold">{alert.equipmentName}</span>
+                    <p className="text-[var(--text-secondary)] text-sm mt-1">{alert.message}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => resolveAlert(alert.id)}
+                      className="px-3 py-1.5 rounded text-xs font-semibold bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+                    >
+                      Resolve
+                    </button>
+                    <span className="text-xs text-[var(--text-muted)]">{alert.id}</span>
+                  </div>
                 </div>
-                <span className="text-xs text-[var(--text-muted)]">{alert.id}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Equipment Status Grid */}
@@ -76,10 +113,10 @@ export default function Dashboard() {
                 <div className="mt-4">
                   <div className="flex justify-between text-sm mb-1">
                     <span>Health Score</span>
-                    <span className="font-bold">{eq.healthScore}%</span>
+                    <span className="font-bold">{eq.health_score ?? eq.healthScore ?? 100}%</span>
                   </div>
                   <div className="w-full bg-slate-800 rounded-full h-2">
-                    <div className="h-2 rounded-full bg-blue-500" style={{ width: `${eq.healthScore}%` }} />
+                    <div className="h-2 rounded-full bg-blue-500" style={{ width: `${eq.health_score ?? eq.healthScore ?? 100}%` }} />
                   </div>
                 </div>
               </div>
