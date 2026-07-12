@@ -21,7 +21,7 @@ export async function generateMetadata({
   };
 }
 
-/* ── SVG Circular Health Gauge ───────────────────────────────────────── */
+/* -- SVG Circular Health Gauge ----------------------------------------- */
 function HealthGauge({ score, size = 96 }: { score: number; size?: number }) {
   const radius = 15.9154943092;
   const circumference = 2 * Math.PI * radius;

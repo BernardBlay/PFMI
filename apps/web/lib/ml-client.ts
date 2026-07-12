@@ -18,7 +18,7 @@ function getServiceUrl(): string {
   );
 }
 
-// ─── Response types ────────────────────────────────────────────────────────
+// --- Response types --------------------------------------------------------
 
 export interface MLHealthStatus {
   online: boolean;
@@ -134,7 +134,7 @@ function mockPrediction(sensors: {
   };
 }
 
-// ─── API calls ─────────────────────────────────────────────────────────────
+// --- API calls -------------------------------------------------------------
 
 /**
  * Check if the ML service is reachable and which models are loaded.
@@ -243,7 +243,6 @@ export async function predictFromSensors(sensors: {
 }
 
 // ─── Legacy export ─────────────────────────────────────────────────────────
-
 export const mlClient = {
   predictRUL: async (sensors: Record<string, number>) => {
     const result = await predictFromSensors({
