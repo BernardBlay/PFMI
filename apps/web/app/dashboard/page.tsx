@@ -392,21 +392,14 @@ export default function Dashboard() {
 
       {/* Active Alerts — Top 5 Priority Grid */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-red-500" />
-            <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
-              Active Alerts
-            </h2>
-            {alerts.length > 0 && (
-              <span className="text-[9px] font-mono font-bold text-red-500">
-                {alerts.length}
-              </span>
-            )}
-          </div>
-          {alerts.length > 5 && (
-            <span className="text-[10px] font-mono text-text-muted">
-              Top 5 by severity
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-red-500" />
+          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
+            Active Alerts
+          </h2>
+          {alerts.length > 0 && (
+            <span className="text-[9px] font-mono font-bold text-red-500">
+              {alerts.length}
             </span>
           )}
         </div>
@@ -418,19 +411,18 @@ export default function Dashboard() {
             <p className="text-[10px] text-text-muted mt-0.5">No critical deviations flagged.</p>
           </div>
         ) : (() => {
-            const top5 = [...alerts]
-              .sort((a, b) => (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0))
-              .slice(0, 5);
-            const isOdd = top5.length % 2 !== 0;
+            const sorted = [...alerts]
+              .sort((a, b) => (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0));
+            const isOdd = sorted.length % 2 !== 0;
             return (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {top5.map((alert, i) => (
+                {sorted.map((alert, i) => (
                   <AlertCard
                     key={alert.id}
                     alert={alert}
                     onResolve={resolveAlert}
                     isResolving={resolving === alert.id}
-                    spanFull={isOdd && i === top5.length - 1}
+                    spanFull={isOdd && i === sorted.length - 1}
                   />
                 ))}
               </div>
