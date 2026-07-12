@@ -7,6 +7,9 @@ import {
   Flame, TrendingUp, TrendingDown, BarChart3, Zap
 } from "lucide-react";
 import { Equipment, Alert } from "@/lib/db";
+import MissionControl from "@/components/MissionControl";
+import { getMachineMeta } from "@/lib/machine-meta";
+import Tip from "@/components/ui/Tip";
 
 /* ── SVG Circular Health Gauge (SmartStudy-inspired) ───────────────── */
 function HealthGauge({ score, size = 72 }: { score: number; size?: number }) {
@@ -117,6 +120,18 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [mlStatus, setMlStatus] = useState<"online" | "offline" | "checking">("checking");
+  const [view, setView] = useState<"mission" | "classic">("mission");
+
+  // Restore preferred dashboard view
+  useEffect(() => {
+    const saved = localStorage.getItem("pfmi-dashboard-view");
+    if (saved === "classic" || saved === "mission") setView(saved);
+  }, []);
+
+  const switchView = (v: "mission" | "classic") => {
+    setView(v);
+    localStorage.setItem("pfmi-dashboard-view", v);
+  };
 
   const fetchData = async () => {
     try {
@@ -164,8 +179,42 @@ export default function Dashboard() {
     }
   };
 
+  const viewToggle = (
+    <div className="inline-flex items-center rounded-lg border border-border-mute bg-surface p-0.5">
+      {(["mission", "classic"] as const).map((v) => (
+        <button
+          key={v}
+          onClick={() => switchView(v)}
+          className={`px-3 py-1.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            view === v
+              ? "bg-foreground text-background shadow-sm"
+              : "text-text-muted hover:text-foreground"
+          }`}
+        >
+          {v === "mission" ? "Mission Control" : "Classic"}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (view === "mission") {
+    return (
+      <div className="max-w-6xl mx-auto py-6 space-y-4">
+        <div className="flex justify-end">{viewToggle}</div>
+        <MissionControl
+          equipment={equipment}
+          alerts={alerts}
+          loading={loading}
+          mlStatus={mlStatus}
+          onResolve={resolveAlert}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto py-6">
+      <div className="flex justify-end -mb-4">{viewToggle}</div>
       {/* Title Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border-mute pb-5 gap-3">
         <div>
@@ -312,13 +361,26 @@ export default function Dashboard() {
                   <div>
                     {/* Header row with gauge */}
                     <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1 min-w-0 mr-3">
-                        <h3 className="font-bold text-sm text-foreground font-sans tracking-tight truncate">
-                          {eq.name}
-                        </h3>
-                        <p className="text-[9px] font-mono text-text-muted uppercase mt-0.5 truncate">
-                          {eq.id?.slice(0, 12)}
-                        </p>
+                      <div className="flex items-center gap-2.5 flex-1 min-w-0 mr-3">
+                        {(() => {
+                          const meta = getMachineMeta(eq.name);
+                          const MachineIcon = meta.icon;
+                          return (
+                            <Tip label={meta.type} sub="machine class" side="bottom">
+                              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border-mute bg-background/60 ${scoreColor}`}>
+                                <MachineIcon className="h-4.5 w-4.5" />
+                              </span>
+                            </Tip>
+                          );
+                        })()}
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-sm text-foreground font-sans tracking-tight truncate">
+                            {eq.name}
+                          </h3>
+                          <p className="text-[9px] font-mono text-text-muted uppercase mt-0.5 truncate">
+                            {eq.id?.slice(0, 12)}
+                          </p>
+                        </div>
                       </div>
                       <HealthGauge score={eq.health_score} size={56} />
                     </div>

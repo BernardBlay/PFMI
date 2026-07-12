@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseRestRequest } from "@/lib/supabase-rest";
 import { db } from "@/lib/db";
+import { DEMO_ALERTS } from "@/lib/demo-data";
 
 export async function GET() {
   try {
@@ -21,8 +22,9 @@ export async function GET() {
         resolved: alert.resolved,
       }))
     );
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Database unavailable" }, { status: 503 });
+  } catch {
+    // Database not configured/unreachable — serve demo alerts
+    return NextResponse.json(DEMO_ALERTS, { headers: { "x-pfmi-demo": "1" } });
   }
 }
 

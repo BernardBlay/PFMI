@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseRestRequest } from "@/lib/supabase-rest";
+import { DEMO_EQUIPMENT } from "@/lib/demo-data";
 
 export async function GET() {
   try {
@@ -10,8 +11,9 @@ export async function GET() {
       },
     });
     return NextResponse.json(await response.json());
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Database unavailable" }, { status: 503 });
+  } catch {
+    // Database not configured/unreachable — serve the demo fleet
+    return NextResponse.json(DEMO_EQUIPMENT, { headers: { "x-pfmi-demo": "1" } });
   }
 }
 

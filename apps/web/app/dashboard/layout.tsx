@@ -6,7 +6,8 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const criticalAlert = await db.getMostCriticalAlert();
+  // Don't let a missing/unreachable database take down the whole dashboard
+  const criticalAlert = await db.getMostCriticalAlert().catch(() => null);
 
   return (
     <DashboardShell criticalAlert={criticalAlert}>
