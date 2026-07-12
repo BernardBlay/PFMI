@@ -34,7 +34,7 @@ logger = logging.getLogger("pfmi.ml-service")
 # ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
 MODELS_DIR = BASE_DIR / "models"
-PFMI_MODELS_DIR = BASE_DIR.parent.parent / "pfmi" / "models"  # wheel-loader
+PFMI_MODELS_DIR = BASE_DIR / "pfmi" / "models"  # wheel-loader
 
 # ---------------------------------------------------------------------------
 # Global holders — populated at startup
@@ -43,12 +43,14 @@ _bulldozer: dict[str, Any] = {}      # model, meta
 _truck: dict[str, Any] = {}          # model, scaler, label_encoder
 _generic: dict[str, Any] = {}        # model, meta
 _wheel_loader: dict[str, Any] = {}   # failure_24h, failure_7d, failure_type
+_drill: dict[str, Any] = {}          # model, scaler_mean, scaler_std
 
 MODEL_STATUS: dict[str, str] = {
     "bulldozer": "not_loaded",
     "truck": "not_loaded",
     "generic": "not_loaded",
     "wheel_loader": "not_loaded",
+    "drill": "not_loaded",
 }
 
 # ---------------------------------------------------------------------------
@@ -71,12 +73,12 @@ def _load_keras_model(path: Path):
     """Try tf.keras first, fall back to keras standalone."""
     try:
         from tensorflow.keras.models import load_model  # type: ignore[import]
-        return load_model(str(path))
+        return load_model(str(path), compile=False)
     except Exception:
         pass
     try:
         from keras.models import load_model as load_model_k  # type: ignore[import]
-        return load_model_k(str(path))
+        return load_model_k(str(path), compile=False)
     except Exception as exc:
         raise ImportError(f"Cannot load Keras model: {exc}") from exc
 
@@ -121,7 +123,14 @@ def _load_truck() -> None:
         if not encoder_path.exists():
             raise FileNotFoundError(f"label_encoder.pkl not found in {truck_dir}")
 
-        model = _load_keras_model(model_path)
+        # Register custom loss before loading
+        import tensorflow as tf
+
+        def weighted_ce(y_true, y_pred):
+            return tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred)
+
+        model = tf.keras.models.load_model(str(model_path), custom_objects={"weighted_ce": weighted_ce})
+
         scaler = joblib.load(scaler_path)
         label_encoder = joblib.load(encoder_path)
 
@@ -184,13 +193,42 @@ def _load_wheel_loader() -> None:
         logger.warning("✗ Wheel-loader models NOT loaded: %s", exc)
 
 
+def _load_drill() -> None:
+    """Load Keras LSTM drill-rig model + scaler params."""
+    global _drill
+    drill_dir = MODELS_DIR / "drill_model"
+    model_path = drill_dir / "best_lstm_model.keras"
+    scaler_path = drill_dir / "scaler_params.npz"
+
+    try:
+        if not model_path.exists():
+            raise FileNotFoundError(f"best_lstm_model.keras not found in {drill_dir}")
+        if not scaler_path.exists():
+            raise FileNotFoundError(f"scaler_params.npz not found in {drill_dir}")
+
+        import tensorflow as tf
+        model = tf.keras.models.load_model(str(model_path))
+        scaler_data = np.load(str(scaler_path))
+
+        _drill = {
+            "model": model,
+            "scaler_mean": scaler_data["mean"],
+            "scaler_std": scaler_data["std"],
+        }
+        MODEL_STATUS["drill"] = "loaded"
+        logger.info("✓ Drill-rig LSTM model loaded")
+    except Exception as exc:
+        MODEL_STATUS["drill"] = f"error: {exc}"
+        logger.warning("✗ Drill-rig model NOT loaded: %s", exc)
+
+
 # ---------------------------------------------------------------------------
 # Pydantic schemas
 # ---------------------------------------------------------------------------
 
 # Legacy
 class SensorData(BaseModel):
-    sensors: Dict[str, float]
+    sensors: Dict[str, Any]
 
 
 # Bulldozer
@@ -315,6 +353,7 @@ def load_all_models():
     _load_truck()
     _load_generic()
     _load_wheel_loader()
+    _load_drill()
 
     loaded_count = sum(1 for s in MODEL_STATUS.values() if s.startswith("loaded"))
     logger.info("=" * 60)
@@ -328,7 +367,7 @@ def load_all_models():
 # Legacy import (kept for /predict fallback)
 # ---------------------------------------------------------------------------
 try:
-    from models.predict import predict_rul
+    from models.grinder.predict import predict_rul
 except ImportError:
     predict_rul = None  # type: ignore[assignment]
     logger.warning("Legacy predict_rul not importable")
@@ -425,6 +464,20 @@ def list_models():
             "status": MODEL_STATUS["wheel_loader"],
         })
 
+    # Drill Rig
+    if _drill:
+        models_info.append({
+            "category": "drill",
+            "type": "Keras LSTM",
+            "version": "drill-lstm-v1",
+            "features": DRILL_SENSOR_COLS,
+            "failure_modes": DRILL_FAILURE_TYPES,
+            "health_components": DRILL_HEALTH_NAMES,
+            "window_size": 24,
+            "outputs": ["7x component health (3-class)", "rul_hours (regression)", "failure_type (9-class)"],
+            "status": MODEL_STATUS["drill"],
+        })
+
     return {
         "count": len(models_info),
         "models": models_info,
@@ -432,12 +485,13 @@ def list_models():
 
 
 # ---------------------------------------------------------------------------
-# POST /predict  (legacy fallback)
+# POST /predict  (legacy — now delegates to bulldozer)
 # ---------------------------------------------------------------------------
 @app.post("/predict")
 def predict_legacy(data: SensorData):
-    if predict_rul is None:
-        raise HTTPException(status_code=503, detail="Legacy predict module not available")
+    """Legacy endpoint — delegates to bulldozer if loaded, else returns not-ready."""
+    if not _bulldozer:
+        raise HTTPException(status_code=503, detail="No model loaded for /predict. Use /predict/bulldozer, /predict/truck, etc.")
     try:
         rul, anomaly = predict_rul(data.sensors)
         return {
@@ -445,6 +499,8 @@ def predict_legacy(data: SensorData):
             "anomalyDetected": anomaly,
             "confidence": 0.92,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -457,66 +513,50 @@ def predict_bulldozer(data: BulldozerRequest):
     if not _bulldozer:
         raise HTTPException(status_code=503, detail="Bulldozer model not loaded")
 
-    model = _bulldozer["model"]
+    model_dict = _bulldozer["model"]  # dict with keys: health_state_model, failure_mode_model
     meta = _bulldozer["meta"]
     features = meta["features"]
     derived_names = meta.get("derived", [])
     failure_modes = meta["failure_modes"]
-    threshold = meta["threshold"]
     reliable_modes = meta.get("reliable_modes", [])
     mode_threshold = meta.get("mode_confidence_threshold", 0.5)
     health_states = meta.get("targets", {}).get("health_state", ["normal", "degrading", "imminent_failure"])
 
+    # Unpack sub-models
+    if isinstance(model_dict, dict):
+        health_model = model_dict.get("health_state_model")
+        failure_model = model_dict.get("failure_mode_model")
+    else:
+        health_model = model_dict
+        failure_model = model_dict
+
+    if health_model is None or failure_model is None:
+        raise HTTPException(status_code=500, detail="Bulldozer sub-models missing from model.joblib")
+
     # Build feature vector
     try:
+        import xgboost as xgb
         raw_values = {f: data.sensors.get(f, 0.0) for f in features}
-
-        # Compute derived features if model expects them
         derived_values = _compute_bulldozer_derived(raw_values, derived_names)
-
         feature_names = features + derived_names
         values = [raw_values[f] for f in features] + [derived_values.get(d, 0.0) for d in derived_names]
-
-        X = np.array(values, dtype=np.float64).reshape(1, -1)
+        arr = np.array(values, dtype=np.float64).reshape(1, -1)
+        dmatrix = xgb.DMatrix(arr, feature_names=feature_names)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Feature construction error: {exc}")
 
     try:
-        # The bulldozer model is a multi-output XGBoost; predict returns
-        # health_state index and failure_mode index (or probabilities).
-        raw_pred = model.predict(X)
+        hs_probs = health_model.predict(dmatrix)   # (1, 3)
+        fm_probs = failure_model.predict(dmatrix)  # (1, 6)
 
-        # Attempt to get probabilities
-        try:
-            probas = model.predict_proba(X)
-        except Exception:
-            probas = None
-
-        # Parse output — depends on model structure
-        if hasattr(raw_pred, "shape") and len(raw_pred.shape) == 2 and raw_pred.shape[1] >= 2:
-            # Multi-output: col 0 = health_state idx, col 1 = failure_mode idx
-            hs_idx = int(raw_pred[0, 0])
-            fm_idx = int(raw_pred[0, 1])
-        else:
-            hs_idx = int(raw_pred[0]) if len(raw_pred) > 0 else 0
-            fm_idx = 0
+        hs_idx = int(np.argmax(hs_probs[0]))
+        fm_idx = int(np.argmax(fm_probs[0]))
 
         health_state = health_states[hs_idx] if hs_idx < len(health_states) else "unknown"
         failure_mode = failure_modes[fm_idx] if fm_idx < len(failure_modes) else "unknown"
-
-        # Confidence from probabilities
-        hs_conf = 0.0
-        fm_conf = 0.0
-        if probas is not None:
-            if isinstance(probas, list) and len(probas) >= 2:
-                # Multi-output: list of arrays
-                hs_conf = float(np.max(probas[0][0]))
-                fm_conf = float(np.max(probas[1][0]))
-            elif hasattr(probas, "shape"):
-                hs_conf = float(np.max(probas[0]))
-                fm_conf = hs_conf  # single-output fallback
-
-        reliable = failure_mode in reliable_modes and fm_conf >= mode_threshold
+        hs_conf   = float(hs_probs[0][hs_idx])
+        fm_conf   = float(fm_probs[0][fm_idx])
+        reliable  = failure_mode in reliable_modes and fm_conf >= mode_threshold
 
         return BulldozerResponse(
             health_state=health_state,
@@ -569,8 +609,9 @@ def predict_truck(req: TruckPredictRequest):
     if not _truck:
         raise HTTPException(status_code=503, detail="Haul-truck model not loaded")
 
-    if len(req.window) != 30:
-        raise HTTPException(status_code=400, detail="window must contain exactly 30 samples")
+    if len(req.window) < 2:
+        raise HTTPException(status_code=400, detail="window must contain at least 2 samples")
+    seq_len = len(req.window)
 
     try:
         # Convert to numpy array (30, 15)
@@ -578,13 +619,13 @@ def predict_truck(req: TruckPredictRequest):
         for sample in req.window:
             row = [getattr(sample, f) for f in TRUCK_SENSOR_ORDER]
             rows.append(row)
-        window = np.array(rows, dtype=np.float32)  # (30, 15)
+        window = np.array(rows, dtype=np.float32)  # (N, 15)
 
         # Standardise
         scaler = _truck["scaler"]
-        flat = window.reshape(-1, 15)               # (30, 15)
-        scaled = scaler.transform(flat)             # (30, 15)
-        scaled = scaled.reshape(1, 30, 15)          # (1, 30, 15)
+        flat = window.reshape(-1, 15)               # (N, 15)
+        scaled = scaler.transform(flat)             # (N, 15)
+        scaled = scaled.reshape(1, seq_len, 15)     # (1, N, 15)
 
         # Predict
         model = _truck["model"]
@@ -623,7 +664,7 @@ def predict_generic(data: GenericRequest):
     if not _generic:
         raise HTTPException(status_code=503, detail="Generic model not loaded")
 
-    model = _generic["model"]
+    model_obj = _generic["model"]
     meta = _generic["meta"]
     features = meta["features"]
     derived_names = meta.get("derived", [])
@@ -631,23 +672,27 @@ def predict_generic(data: GenericRequest):
     threshold = meta["threshold"]
 
     try:
+        import xgboost as xgb
+
+        # Unpack dict if needed
+        if isinstance(model_obj, dict):
+            booster = next(iter(model_obj.values()))
+        else:
+            booster = model_obj
+
+        # Use only raw features (generic model was trained without derived)
         raw_values = {f: data.sensors.get(f, 0.0) for f in features}
+        values = [raw_values[f] for f in features]
+        arr = np.array(values, dtype=np.float64).reshape(1, -1)
 
-        # Compute derived features for generic model
-        derived_values = _compute_generic_derived(raw_values, derived_names)
-
-        values = [raw_values[f] for f in features] + [derived_values.get(d, 0.0) for d in derived_names]
-        X = np.array(values, dtype=np.float64).reshape(1, -1)
-
-        # Predict
-        try:
-            proba = model.predict_proba(X)[0]
+        if hasattr(booster, "predict"):
+            dmatrix = xgb.DMatrix(arr, feature_names=features)
+            proba = booster.predict(dmatrix)[0]
             pred_idx = int(np.argmax(proba))
             confidence = float(np.max(proba))
-        except Exception:
-            raw_pred = model.predict(X)
-            pred_idx = int(raw_pred[0])
-            confidence = 1.0 if pred_idx == 0 else threshold
+        else:
+            pred_idx = 0
+            confidence = 0.0
 
         prediction = failure_modes[pred_idx] if pred_idx < len(failure_modes) else "unknown"
 
@@ -676,6 +721,57 @@ def _compute_generic_derived(raw: dict, derived_names: list) -> dict:
         d["wear_x_torque"] = raw.get("tool_wear", 0.0) * raw.get("torque", 0.0)
 
     return d
+
+
+DRILL_SENSOR_COLS = [
+    "Vibration_X_RMS", "Vibration_X_Peak", "Vibration_Y_RMS", "Vibration_Y_Peak",
+    "Vibration_Z_RMS", "Vibration_Z_Peak", "Acoustic_Emission_RMS",
+    "Penetration_Rate_Avg", "Rotation_Speed_Avg", "Feed_Pressure_Avg",
+    "Hydraulic_Pressure_Avg", "Hydraulic_Return_Pressure_Avg",
+    "Hydraulic_Oil_Temp_Avg", "Flow_Rate_Avg",
+    "Differential_Pressure_Filter_Avg", "Oil_Particle_Count_Avg",
+    "Oil_Moisture_Avg", "Oil_Viscosity_Avg", "Tank_Level_End",
+    "Drive_Motor_Current_Avg", "Motor_Winding_Temp_Avg",
+]
+
+DRILL_HEALTH_NAMES = [
+    "drill_bit", "striker_bar", "drill_rod", "coupling_sleeve",
+    "hydraulic_seal", "hydraulic_hose", "filter",
+]
+
+DRILL_HEALTH_LABELS = ["healthy", "degraded", "imminent_failure"]
+
+DRILL_FAILURE_TYPES = [
+    "none", "drill_bit", "striker_bar", "drill_rod",
+    "coupling_sleeve", "seal_leak", "hose_burst", "filter_clog", "multiple",
+]
+
+
+class DrillRequest(BaseModel):
+    sensors: Dict[str, float] = Field(
+        ...,
+        description="21 sensor readings for the hydraulic drill rig. See /models for full list.",
+    )
+    window: Optional[List[Dict[str, float]]] = Field(
+        default=None,
+        description="Optional sequence of hourly readings (up to 24 hours). If omitted, a single reading is replicated 24×.",
+    )
+
+
+class DrillComponentHealth(BaseModel):
+    component: str
+    label: str
+    class_id: int
+    confidence: float
+    probabilities: Dict[str, float]
+
+
+class DrillResponse(BaseModel):
+    health: List[DrillComponentHealth]
+    rul_hours: float
+    failure_type: str
+    failure_type_confidence: float
+    failure_type_probs: Dict[str, float]
 
 
 # ---------------------------------------------------------------------------
@@ -715,6 +811,89 @@ def predict_wheel_loader(data: WheelLoaderRequest):
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Wheel-loader inference error: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# POST /predict/drill
+# ---------------------------------------------------------------------------
+@app.post("/predict/drill", response_model=DrillResponse)
+def predict_drill(data: DrillRequest):
+    if not _drill:
+        raise HTTPException(status_code=503, detail="Drill-rig model not loaded")
+
+    model = _drill["model"]
+    mean = _drill["scaler_mean"]
+    std  = _drill["scaler_std"]
+
+    # Build sensor array from request
+    try:
+        values = [float(data.sensors.get(c, 0.0)) for c in DRILL_SENSOR_COLS]
+        arr = np.array(values, dtype=np.float32)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Sensor value error: {exc}")
+
+    # If a window is provided, use it; otherwise replicate the single reading 24×
+    try:
+        if data.window and len(data.window) > 0:
+            window_arr = np.array([
+                [float(row.get(c, 0.0)) for c in DRILL_SENSOR_COLS]
+                for row in data.window
+            ], dtype=np.float32)
+            n = window_arr.shape[0]
+            if n >= 24:
+                seq_raw = window_arr[-24:]
+            else:
+                pad = np.tile(window_arr[0:1], (24 - n, 1))
+                seq_raw = np.vstack([pad, window_arr])
+        else:
+            seq_raw = np.tile(arr, (24, 1))
+
+        # Normalize
+        seq = (seq_raw - mean) / np.maximum(std, 1e-6)
+        seq = seq.reshape(1, 24, 21)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Window construction error: {exc}")
+
+    # Predict
+    try:
+        preds = model.predict(seq, verbose=0)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Drill inference error: {exc}")
+
+    # Parse health outputs (first 7 heads)
+    health_results: list[DrillComponentHealth] = []
+    for i, name in enumerate(DRILL_HEALTH_NAMES):
+        probs = preds[i][0]
+        cls_id = int(np.argmax(probs))
+        health_results.append(DrillComponentHealth(
+            component=name,
+            label=DRILL_HEALTH_LABELS[cls_id],
+            class_id=cls_id,
+            confidence=round(float(probs[cls_id]), 4),
+            probabilities={
+                DRILL_HEALTH_LABELS[j]: round(float(probs[j]), 4)
+                for j in range(3)
+            },
+        ))
+
+    # RUL (8th output)
+    rul_norm = float(preds[7][0][0])
+    rul_hours = round(max(0.0, rul_norm) * 2000.0, 1)
+
+    # Failure type (9th output)
+    ft_probs = preds[8][0]
+    ft_cls = int(np.argmax(ft_probs))
+    ft_label = DRILL_FAILURE_TYPES[ft_cls]
+    ft_conf = round(float(ft_probs[ft_cls]), 4)
+    ft_all = {DRILL_FAILURE_TYPES[j]: round(float(ft_probs[j]), 4) for j in range(len(DRILL_FAILURE_TYPES))}
+
+    return DrillResponse(
+        health=health_results,
+        rul_hours=rul_hours,
+        failure_type=ft_label,
+        failure_type_confidence=ft_conf,
+        failure_type_probs=ft_all,
+    )
 
 
 # ---------------------------------------------------------------------------

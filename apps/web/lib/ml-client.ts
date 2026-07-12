@@ -133,41 +133,38 @@ export async function predictFromSensors(sensors: {
   const url = getServiceUrl();
   const mappedSensors = mapSimulatorSensorsToGeneric(sensors);
 
-  // -- Try /predict/generic first --
-  try {
-    const res = await fetch(`${url}/predict/generic`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sensors: mappedSensors }),
-      signal: AbortSignal.timeout(4000),
-    });
+// -- Try /predict/generic first --
+try {
+  const res = await fetch(`${url}/predict/generic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sensors: mappedSensors }),
+    signal: AbortSignal.timeout(4000),
+  });
 
-    if (res.ok) {
-      const data = await res.json();
-      // data: { prediction: string, confidence: number, failure_modes: string[] }
-      const prediction: string = data.prediction ?? "normal";
-      const confidence: number = Number(data.confidence ?? 0.9);
-      const rul = rulFromPrediction(prediction, confidence);
-      const anomaly = prediction !== "normal" && prediction !== "no_failure";
-
-      return {
-        remainingUsefulLife: rul,
-        anomalyDetected: anomaly,
-        confidence,
-        failureMode: prediction,
-        source: "ml",
-      };
-    }
-
-    // 503 = generic model not loaded, try legacy
-    if (res.status === 503) throw new Error("generic_not_loaded");
-  } catch (err: any) {
-    if (err?.message !== "generic_not_loaded") {
-      console.warn("[ml-client] /predict/generic unreachable, trying legacy /predict:", err?.message);
-    }
+  if (res.ok) {
+    const data = await res.json();
+    const prediction: string = data.prediction ?? "normal";
+    const confidence: number = Number(data.confidence ?? 0.9);
+    const rul = rulFromPrediction(prediction, confidence);
+    const anomaly = prediction !== "normal" && prediction !== "no_failure";
+    return {
+      remainingUsefulLife: rul,
+      anomalyDetected: anomaly,
+      confidence,
+      failureMode: prediction,
+      source: "ml",
+    };
   }
 
-  // -- Fallback: /predict (legacy) --
+  if (res.status === 503) throw new Error("generic_not_loaded");
+} catch (err: any) {
+  if (err?.message !== "generic_not_loaded") {
+    console.warn("[ml-client] /predict/generic unreachable, trying legacy /predict:", err?.message);
+  }
+}
+
+// -- Fallback: /predict (legacy) --
   try {
     const res = await fetch(`${url}/predict`, {
       method: "POST",
@@ -187,7 +184,7 @@ export async function predictFromSensors(sensors: {
       };
     }
   } catch (err: any) {
-    console.warn("[ml-client] /predict also unreachable:", err?.message);
+    console.warn("[ml-client] /predict unreachable:", err?.message);
   }
 
   // -- Mock fallback --

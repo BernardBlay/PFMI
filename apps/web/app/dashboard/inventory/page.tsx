@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ShieldAlert, Package, Shield, AlertTriangle, CheckCircle } from "lucide-react";
+import { ArrowLeft, ShieldAlert, Package, Shield, X, Plus } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 import type { Column } from "@/components/ui/DataTable";
 
@@ -15,6 +15,17 @@ interface InventoryRecord {
   location: string;
   reorder: "nominal" | "low-stock" | "reordered";
 }
+
+const CATEGORIES = ["Bearings", "Seals", "Filters", "Fans", "Lubricants", "Electrical", "Fasteners", "Other"];
+
+const EMPTY_FORM = {
+  id: "",
+  name: "",
+  category: "Bearings",
+  stock: "",
+  threshold: "",
+  location: "",
+};
 
 const COLUMNS: Column<InventoryRecord>[] = [
   {
@@ -65,7 +76,7 @@ const COLUMNS: Column<InventoryRecord>[] = [
   },
 ];
 
-const MOCK_INVENTORY: InventoryRecord[] = [
+const INITIAL_INVENTORY: InventoryRecord[] = [
   { id: "PRT-901", name: "High-Temp Bearing Pack B", category: "Bearings", stock: 12, threshold: 5, location: "Aisle 3 - Shelf B", reorder: "nominal" },
   { id: "PRT-902", name: "Hydraulic Seals 120-bar", category: "Seals", stock: 2, threshold: 10, location: "Aisle 1 - Shelf A", reorder: "low-stock" },
   { id: "PRT-903", name: "Oil Filter Cartridges (3μm)", category: "Filters", stock: 45, threshold: 15, location: "Aisle 2 - Shelf D", reorder: "nominal" },
@@ -73,8 +84,19 @@ const MOCK_INVENTORY: InventoryRecord[] = [
   { id: "PRT-905", name: "Hydraulic Fluid Shell Tellus (20L)", category: "Lubricants", stock: 8, threshold: 4, location: "Aisle 1 - Fluid Rack", reorder: "nominal" },
 ];
 
+function deriveReorder(stock: number, threshold: number): InventoryRecord["reorder"] {
+  if (stock <= 0) return "low-stock";
+  if (stock < threshold) return "low-stock";
+  if (stock < threshold * 1.5) return "reordered";
+  return "nominal";
+}
+
 export default function InventoryPage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [inventory, setInventory] = useState<InventoryRecord[]>(INITIAL_INVENTORY);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const mockUserStr = localStorage.getItem("pfmi-mock-user");
@@ -82,13 +104,66 @@ export default function InventoryPage() {
       try {
         const user = JSON.parse(mockUserStr);
         setIsAdmin(user?.user_metadata?.role === "Admin");
-      } catch (e) {
+      } catch {
         setIsAdmin(false);
       }
     } else {
       setIsAdmin(false);
     }
   }, []);
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!modalOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") closeModal(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [modalOpen]);
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setForm(EMPTY_FORM);
+    setErrors({});
+  };
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.id.trim()) e.id = "Part ID is required";
+    else if (inventory.some((r) => r.id === form.id.trim())) e.id = "Part ID already exists";
+    if (!form.name.trim()) e.name = "Item name is required";
+    if (!form.stock || isNaN(Number(form.stock)) || Number(form.stock) < 0) e.stock = "Enter a valid stock count";
+    if (!form.threshold || isNaN(Number(form.threshold)) || Number(form.threshold) < 1) e.threshold = "Enter a valid threshold (≥1)";
+    if (!form.location.trim()) e.location = "Warehouse bin is required";
+    return e;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    const stock = Number(form.stock);
+    const threshold = Number(form.threshold);
+    const newItem: InventoryRecord = {
+      id: form.id.trim().toUpperCase(),
+      name: form.name.trim(),
+      category: form.category,
+      stock,
+      threshold,
+      location: form.location.trim(),
+      reorder: deriveReorder(stock, threshold),
+    };
+    setInventory((prev) => [newItem, ...prev]);
+    closeModal();
+  };
+
+  const field = (key: keyof typeof form) => ({
+    value: form[key],
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      setForm((p) => ({ ...p, [key]: e.target.value }));
+      setErrors((p) => { const n = { ...p }; delete n[key]; return n; });
+    },
+  });
 
   if (isAdmin === null) {
     return (
@@ -120,6 +195,8 @@ export default function InventoryPage() {
     );
   }
 
+  const lowStockCount = inventory.filter((i) => i.reorder === "low-stock").length;
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto py-6">
       {/* Breadcrumb */}
@@ -145,30 +222,183 @@ export default function InventoryPage() {
             Critical maintenance components registry
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-emerald-500" />
-          <span className="text-[10px] font-bold font-mono text-emerald-650 dark:text-emerald-400 uppercase tracking-widest">
-            SECURE ACCESS AUTHORIZED
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-emerald-500" />
+            <span className="text-[10px] font-bold font-mono text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+              Secure Access
+            </span>
+          </div>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-foreground text-background text-[11px] font-mono font-bold uppercase tracking-widest hover:bg-foreground/90 active:scale-[0.97] transition-all cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Item
+          </button>
         </div>
       </div>
 
       {/* Table Card */}
       <div className="bg-surface border border-border-mute rounded-2xl overflow-hidden shadow-sm">
-        <div className="px-5 py-4 border-b border-border-mute">
-          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">
-            Warehouse Diagnostics
-          </h2>
-          <p className="text-[10px] text-text-muted font-mono uppercase mt-1">
-            {MOCK_INVENTORY.filter(i => i.reorder === "low-stock").length} parts low in stock
-          </p>
+        <div className="px-5 py-4 border-b border-border-mute flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">
+              Warehouse Diagnostics
+            </h2>
+            <p className="text-[10px] text-text-muted font-mono uppercase mt-1">
+              {inventory.length} items · {lowStockCount} part{lowStockCount !== 1 ? "s" : ""} low in stock
+            </p>
+          </div>
+          <Package className="h-4 w-4 text-text-muted" />
         </div>
         <DataTable
           columns={COLUMNS}
-          rows={MOCK_INVENTORY}
+          rows={inventory}
           emptyMessage="No inventory records found."
         />
       </div>
+
+      {/* Add Item Modal */}
+      {modalOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-50 bg-black/30 dark:bg-black/50 backdrop-blur-[2px]"
+            onClick={closeModal}
+          />
+
+          {/* Modal */}
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="w-full max-w-md bg-surface border border-border-mute rounded-2xl shadow-2xl flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border-mute">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-text-muted" />
+                  <h3 className="text-xs font-bold font-mono uppercase tracking-widest text-foreground">
+                    Add Inventory Item
+                  </h3>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="p-1.5 rounded-lg text-text-muted hover:text-foreground hover:bg-background transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="px-5 py-5 space-y-4">
+
+                {/* Part ID + Name */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-widest text-text-muted mb-1.5">
+                      Part ID
+                    </label>
+                    <input
+                      {...field("id")}
+                      placeholder="PRT-906"
+                      className={`w-full bg-background border rounded-lg px-3 py-2 text-xs font-mono text-foreground placeholder:text-text-muted focus:outline-none transition-colors ${errors.id ? "border-red-500/60" : "border-border-mute focus:border-zinc-400 dark:focus:border-zinc-600"}`}
+                    />
+                    {errors.id && <p className="text-[9px] text-red-500 mt-1 font-mono">{errors.id}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-widest text-text-muted mb-1.5">
+                      Category
+                    </label>
+                    <select
+                      {...field("category")}
+                      className="w-full bg-background border border-border-mute rounded-lg px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors cursor-pointer"
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Item Name */}
+                <div>
+                  <label className="block text-[9px] font-mono font-bold uppercase tracking-widest text-text-muted mb-1.5">
+                    Item Name
+                  </label>
+                  <input
+                    {...field("name")}
+                    placeholder="e.g. High-Temp Bearing Pack C"
+                    className={`w-full bg-background border rounded-lg px-3 py-2 text-xs font-mono text-foreground placeholder:text-text-muted focus:outline-none transition-colors ${errors.name ? "border-red-500/60" : "border-border-mute focus:border-zinc-400 dark:focus:border-zinc-600"}`}
+                  />
+                  {errors.name && <p className="text-[9px] text-red-500 mt-1 font-mono">{errors.name}</p>}
+                </div>
+
+                {/* Stock + Threshold */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-widest text-text-muted mb-1.5">
+                      Stock (units)
+                    </label>
+                    <input
+                      {...field("stock")}
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      className={`w-full bg-background border rounded-lg px-3 py-2 text-xs font-mono text-foreground placeholder:text-text-muted focus:outline-none transition-colors ${errors.stock ? "border-red-500/60" : "border-border-mute focus:border-zinc-400 dark:focus:border-zinc-600"}`}
+                    />
+                    {errors.stock && <p className="text-[9px] text-red-500 mt-1 font-mono">{errors.stock}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-widest text-text-muted mb-1.5">
+                      Reorder Threshold
+                    </label>
+                    <input
+                      {...field("threshold")}
+                      type="number"
+                      min="1"
+                      placeholder="5"
+                      className={`w-full bg-background border rounded-lg px-3 py-2 text-xs font-mono text-foreground placeholder:text-text-muted focus:outline-none transition-colors ${errors.threshold ? "border-red-500/60" : "border-border-mute focus:border-zinc-400 dark:focus:border-zinc-600"}`}
+                    />
+                    {errors.threshold && <p className="text-[9px] text-red-500 mt-1 font-mono">{errors.threshold}</p>}
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="block text-[9px] font-mono font-bold uppercase tracking-widest text-text-muted mb-1.5">
+                    Warehouse Bin
+                  </label>
+                  <input
+                    {...field("location")}
+                    placeholder="e.g. Aisle 2 - Shelf C"
+                    className={`w-full bg-background border rounded-lg px-3 py-2 text-xs font-mono text-foreground placeholder:text-text-muted focus:outline-none transition-colors ${errors.location ? "border-red-500/60" : "border-border-mute focus:border-zinc-400 dark:focus:border-zinc-600"}`}
+                  />
+                  {errors.location && <p className="text-[9px] text-red-500 mt-1 font-mono">{errors.location}</p>}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="flex-1 py-2.5 rounded-xl border border-border-mute text-[11px] font-mono font-bold uppercase tracking-widest text-text-muted hover:text-foreground hover:border-zinc-400 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-foreground text-background text-[11px] font-mono font-bold uppercase tracking-widest hover:bg-foreground/90 active:scale-[0.97] transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Item
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
