@@ -1,0 +1,43 @@
+# PFMI ML Prediction Scheduler - Docker Compose
+# ==============================================
+# Runs ML predictions as a containerized cron job
+#
+# Usage:
+# ------
+# 1. Update environment variables in this file
+# 2. Build and start the scheduler:
+#    docker-compose -f scheduler/docker-compose.yml up -d
+# 3. View logs:
+#    docker-compose -f scheduler/docker-compose.yml logs -f
+# 4. Stop:
+#    docker-compose -f scheduler/docker-compose.yml down
+
+version: '3.8'
+
+services:
+  prediction-scheduler:
+    image: python:3.11-slim
+    container_name: pfmi-prediction-scheduler
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ../apps/ml-service:/app
+      - ./logs:/var/log
+    environment:
+      - SUPABASE_URL=https://your-project.supabase.co
+      - SUPABASE_ANON_KEY=your-anon-key-here
+      - ML_SERVICE_URL=http://host.docker.internal:8000
+    command: >
+      bash -c "
+        pip install --no-cache-dir -r requirements.txt &&
+        echo '*/30 * * * * cd /app && python3 predict_to_db.py >> /var/log/predictions.log 2>&1' > /etc/cron.d/pfmi-predictions &&
+        chmod 0644 /etc/cron.d/pfmi-predictions &&
+        crontab /etc/cron.d/pfmi-predictions &&
+        cron -f
+      "
+    networks:
+      - pfmi-network
+
+networks:
+  pfmi-network:
+    driver: bridge
