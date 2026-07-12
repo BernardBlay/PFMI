@@ -18,7 +18,7 @@ function getServiceUrl(): string {
   );
 }
 
-// ─── Response types ────────────────────────────────────────────────────────
+// --- Response types --------------------------------------------------------
 
 export interface MLHealthStatus {
   online: boolean;
@@ -36,7 +36,7 @@ export interface MLPrediction {
   source: "ml" | "mock";
 }
 
-// ─── Sensor name mapping ────────────────────────────────────────────────────
+// --- Sensor name mapping ----------------------------------------------------
 // The simulator uses human-friendly keys (temperature, vibration, pressure).
 // The generic XGBoost model expects AI4I-style feature names.
 // This function maps simulator readings → model feature vector.
@@ -88,7 +88,7 @@ function rulFromPrediction(prediction: string, confidence: number): number {
   return Math.round(baseDays * (0.6 + confidence * 0.4));
 }
 
-// ─── API calls ─────────────────────────────────────────────────────────────
+// --- API calls -------------------------------------------------------------
 
 /**
  * Check if the ML service is reachable and which models are loaded.
@@ -133,7 +133,7 @@ export async function predictFromSensors(sensors: {
   const url = getServiceUrl();
   const mappedSensors = mapSimulatorSensorsToGeneric(sensors);
 
-  // ── Try /predict/generic first ──
+  // -- Try /predict/generic first --
   try {
     const res = await fetch(`${url}/predict/generic`, {
       method: "POST",
@@ -167,7 +167,7 @@ export async function predictFromSensors(sensors: {
     }
   }
 
-  // ── Fallback: /predict (legacy) ──
+  // -- Fallback: /predict (legacy) --
   try {
     const res = await fetch(`${url}/predict`, {
       method: "POST",
@@ -190,7 +190,7 @@ export async function predictFromSensors(sensors: {
     console.warn("[ml-client] /predict also unreachable:", err?.message);
   }
 
-  // ── Mock fallback ──
+  // -- Mock fallback --
   const isCritical = sensors.temperature > 90 || sensors.vibration > 8;
   const isWarning = sensors.temperature > 80 || sensors.vibration > 5;
   return {
@@ -202,7 +202,7 @@ export async function predictFromSensors(sensors: {
   };
 }
 
-// ─── Legacy export (used by existing callers) ──────────────────────────────
+// --- Legacy export (used by existing callers) ------------------------------
 export const mlClient = {
   predictRUL: async (sensors: Record<string, number>) => {
     const result = await predictFromSensors({

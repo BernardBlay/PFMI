@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Equipment, Alert } from "@/lib/db";
 
-/* ── SVG Circular Health Gauge (SmartStudy-inspired) ───────────────── */
+/* -- SVG Circular Health Gauge (SmartStudy-inspired) ----------------- */
 function HealthGauge({ score, size = 72 }: { score: number; size?: number }) {
   const radius = 15.9154943092;
   const circumference = 2 * Math.PI * radius;
@@ -65,7 +65,7 @@ function HealthGauge({ score, size = 72 }: { score: number; size?: number }) {
   );
 }
 
-/* ── Fleet Summary Stats Row ────────────────────────────────────────── */
+/* -- Fleet Summary Stats Row ------------------------------------------ */
 function FleetStats({ equipment, alerts }: { equipment: Equipment[]; alerts: Alert[] }) {
   const totalUnits = equipment.length;
   const healthyCount = equipment.filter((e) => e.status === "Healthy").length;
@@ -111,7 +111,7 @@ function FleetStats({ equipment, alerts }: { equipment: Equipment[]; alerts: Ale
   );
 }
 
-/* ── Main Dashboard ────────────────────────────────────────────────── */
+/* -- Main Dashboard -------------------------------------------------- */
 export default function Dashboard() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);

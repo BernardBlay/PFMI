@@ -170,7 +170,7 @@ export default function AnomalySimulator() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-stretch w-full">
 
-          {/* ── Left: Preset selector + ML status ── */}
+          {/* -- Left: Preset selector + ML status -- */}
           <div className="flex flex-col justify-between p-5 bg-surface border border-border-mute rounded-2xl shadow-sm min-w-0">
             <div>
               <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted mb-4">
@@ -239,7 +239,7 @@ export default function AnomalySimulator() {
             </div>
           </div>
 
-          {/* ── Right: Live dashboard panel ── */}
+          {/* -- Right: Live dashboard panel -- */}
           <div className="bg-surface border border-border-mute rounded-2xl shadow-xl overflow-hidden flex flex-col justify-between min-w-0">
 
             {/* Console header */}
