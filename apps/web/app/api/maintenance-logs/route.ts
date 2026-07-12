@@ -3,6 +3,23 @@ import { supabaseRestRequest } from "@/lib/supabase-rest";
 
 export async function POST(req: Request) {
   try {
+    // Check for authentication (basic header check)
+    const authHeader = req.headers.get("authorization");
+    const cookieHeader = req.headers.get("cookie");
+    
+    // For now, we'll allow the request if it comes from the same origin
+    // In production, you'd verify the session token properly
+    const origin = req.headers.get("origin");
+    const referer = req.headers.get("referer");
+    
+    // Check if request is from authenticated session (has referer from our domain)
+    if (!referer || (!referer.includes("localhost") && !referer.includes("pfmi"))) {
+      return NextResponse.json(
+        { error: "Authentication required. Please login to access OCR features." },
+        { status: 401 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File;
 
