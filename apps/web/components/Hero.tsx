@@ -18,8 +18,11 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative border-b border-border-mute bg-background/30 py-20 md:py-32 overflow-hidden">
-      {/* Floating gradient orbs */}
+    <section className="relative border-b border-border-mute bg-background/30 py-20 md:py-28 overflow-hidden">
+      {/* Blueprint grid + aurora beams */}
+      <div className="pointer-events-none absolute inset-0 mc-grid-bg opacity-70" />
+      <div className="hero-beam pointer-events-none absolute -top-40 left-[8%] h-[560px] w-40 rotate-[24deg]" />
+      <div className="hero-beam pointer-events-none absolute -top-48 right-[16%] h-[620px] w-56 rotate-[-18deg]" style={{ animationDelay: "3s" }} />
       <div
         className="hero-orb"
         style={{
@@ -32,9 +35,10 @@ export default function Hero() {
         className="hero-orb"
         style={{
           width: 400, height: 400,
-          background: "radial-gradient(circle, #2563eb 0%, transparent 70%)",
+          background: "radial-gradient(circle, #059669 0%, transparent 70%)",
           bottom: "-10%", right: "5%",
           animationDelay: "4s",
+          opacity: 0.5,
         }}
       />
 
@@ -70,30 +74,11 @@ export default function Hero() {
         </div>
 
         {/* Metrics Bar */}
-        <div className="hero-animate hero-animate-delay-4 grid grid-cols-2 md:grid-cols-4 gap-0 max-w-2xl w-full border border-border-mute/80 rounded-2xl mt-14 overflow-hidden">
-          {[
-            { value: "99.8%", label: "System Uptime" },
-            { value: "< 5 Sec", label: "OCR Ingest Speed" },
-            { value: "94.2%", label: "Anomaly Accuracy" },
-            { value: "-40%", label: "Maintenance Cost" },
-          ].map((stat, i) => (
-            <div
-              key={i}
-              className={`flex flex-col items-center justify-center gap-1 py-5 px-4 bg-background/60 transition-colors duration-200 hover:bg-surface
-                ${i % 2 === 0 ? "border-r border-border-mute/60" : ""}
-                ${i < 2 ? "border-b border-border-mute/60 md:border-b-0" : ""}
-                ${i === 1 ? "md:border-r border-border-mute/60" : ""}
-                ${i === 2 ? "md:border-r border-border-mute/60" : ""}
-              `}
-            >
-              <span className="text-2xl font-extrabold text-foreground tracking-tight leading-none">
-                {stat.value}
-              </span>
-              <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted font-mono text-center leading-snug">
-                {stat.label}
-              </span>
-            </div>
-          ))}
+        <div className="hero-animate hero-animate-delay-4 grid grid-cols-2 md:grid-cols-4 max-w-3xl w-full border border-border-mute/80 rounded-2xl mt-16 mx-auto overflow-hidden divide-x divide-y md:divide-y-0 divide-border-mute/60">
+          <Metric value={99.8} suffix="%" decimals={1} label="System Uptime" />
+          <Metric value={5} prefix="< " suffix=" Sec" label="OCR Ingest Speed" />
+          <Metric value={94.2} suffix="%" decimals={1} label="Anomaly Accuracy" />
+          <Metric value={-40} suffix="%" label="Maintenance Cost" />
         </div>
       </div>
     </section>
