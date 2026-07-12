@@ -220,14 +220,28 @@ function AlertCard({
   const machineLabel = getMachineLabel(alert.equipmentName ?? "");
   const partLabel    = getPartLabel(alert.message ?? "");
 
+  // Severity-keyed corner accent colour (matches equipment card pattern)
+  const accentBg =
+    alert.severity === "Critical" ? "bg-red-500" :
+    alert.severity === "High"     ? "bg-orange-500" :
+    alert.severity === "Medium"   ? "bg-amber-500" : "bg-blue-400";
+
   return (
     <div
-      className={`relative bg-surface rounded-xl border border-border-mute
-        transition-all duration-200 hover:shadow-md hover:-translate-y-px
+      className={`group relative overflow-hidden rounded-2xl border border-border-mute/80
+        bg-surface/50 backdrop-blur-sm
+        shadow-[0_8px_30px_rgba(0,0,0,0.04)]
+        transition-all duration-300
+        hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.08)] hover:border-border-mute
         ${spanFull ? "lg:col-span-2" : ""}`}
     >
-      {/* Left accent — sole colour signal for severity */}
-      <div className={`absolute inset-y-0 left-0 w-0.75 rounded-l-xl ${s.bar}`} />
+      {/* Decorative corner accent — same pattern as equipment cards */}
+      <div className="absolute top-0 right-0 w-24 h-24 overflow-hidden rounded-tr-2xl pointer-events-none">
+        <div className={`absolute -top-12 -right-12 w-24 h-24 rotate-45 opacity-[0.05] ${accentBg}`} />
+      </div>
+
+      {/* Left severity accent */}
+      <div className={`absolute inset-y-0 left-0 w-0.75 rounded-l-2xl ${s.bar}`} />
 
       <div className="pl-5 pr-4 py-4 flex flex-col gap-3">
 
@@ -238,12 +252,12 @@ function AlertCard({
               getMachineIcon(alert.equipmentName ?? ""),
               { className: `h-4 w-4 shrink-0 ${s.text}` }
             )}
-            <span className="font-semibold text-sm text-foreground truncate">
+            <span className="font-bold text-sm text-foreground truncate tracking-tight">
               {alert.equipmentName}
             </span>
           </div>
           <span className={`shrink-0 text-[9px] font-mono font-bold uppercase
-            tracking-wider px-2 py-0.5 rounded ${s.bg} ${s.text}`}>
+            tracking-wider px-2 py-0.5 rounded-full border ${s.bg} ${s.text} ${s.border}`}>
             {alert.severity}
           </span>
         </div>
@@ -255,9 +269,7 @@ function AlertCard({
             { className: `h-3.5 w-3.5 shrink-0 ${s.text}` }
           )}
           <span className={`text-xs font-semibold ${s.text}`}>{partLabel}</span>
-          <span className="text-[10px] text-text-muted font-mono">
-            &middot; {machineLabel}
-          </span>
+          <span className="text-[10px] text-text-muted font-mono">&middot; {machineLabel}</span>
         </div>
 
         {/* Row 3: alert message */}
