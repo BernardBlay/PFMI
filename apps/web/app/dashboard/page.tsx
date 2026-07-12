@@ -222,77 +222,65 @@ function AlertCard({
 
   return (
     <div
-      className={`flex flex-col rounded-xl bg-surface border overflow-hidden
-        transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
-        ${s.border} ${spanFull ? "lg:col-span-2" : ""}`}
+      className={`relative bg-surface rounded-xl border border-border-mute
+        transition-all duration-200 hover:shadow-md hover:-translate-y-px
+        ${spanFull ? "lg:col-span-2" : ""}`}
     >
-      {/* Severity bar */}
-      <div className={`h-1 w-full shrink-0 ${s.bar}`} />
+      {/* Left accent — sole colour signal for severity */}
+      <div className={`absolute inset-y-0 left-0 w-0.75 rounded-l-xl ${s.bar}`} />
 
-      {/* Body row — stretches to fill card height */}
-      <div className="flex flex-1">
-        {/* Left: machine icon column */}
-        <div
-          className={`w-18 shrink-0 flex flex-col items-center justify-center
-            gap-2 px-1 border-r border-border-mute/30 ${s.iconBg}`}
-        >
-          {React.createElement(getMachineIcon(alert.equipmentName ?? ""), { className: `h-7 w-7 ${s.text}` })}
-          <span
-            className={`text-[8px] font-mono font-bold uppercase tracking-wide
-              text-center leading-tight ${s.text}`}
-          >
-            {machineLabel}
+      <div className="pl-5 pr-4 py-4 flex flex-col gap-3">
+
+        {/* Row 1: machine icon + unit name + severity label */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            {React.createElement(
+              getMachineIcon(alert.equipmentName ?? ""),
+              { className: `h-4 w-4 shrink-0 ${s.text}` }
+            )}
+            <span className="font-semibold text-sm text-foreground truncate">
+              {alert.equipmentName}
+            </span>
+          </div>
+          <span className={`shrink-0 text-[9px] font-mono font-bold uppercase
+            tracking-wider px-2 py-0.5 rounded ${s.bg} ${s.text}`}>
+            {alert.severity}
           </span>
         </div>
 
-        {/* Right: content — flex-col, resolve pinned to bottom */}
-        <div className="flex flex-col flex-1 min-w-0 p-3.5 gap-2">
-          {/* Top section */}
-          <div className="flex flex-col gap-1.5">
-            {/* Unit name + severity badge */}
-            <div className="flex items-start justify-between gap-2">
-              <span className="font-bold text-sm text-foreground leading-tight line-clamp-1">
-                {alert.equipmentName}
-              </span>
-              <span
-                className={`shrink-0 text-[8px] font-mono font-bold px-1.5 py-0.5
-                  rounded border uppercase ${s.bg} ${s.text} ${s.border}`}
-              >
-                {alert.severity}
-              </span>
-            </div>
-
-            {/* Affected part pill */}
-            <div className={`self-start inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${s.bg}`}>
-              {React.createElement(getPartIcon(alert.message ?? ""), { className: `h-2.5 w-2.5 ${s.text}` })}
-              <span className={`text-[9px] font-mono font-bold uppercase tracking-wide ${s.text}`}>
-                {partLabel}
-              </span>
-            </div>
-
-            {/* Alert message */}
-            <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">
-              {alert.message}
-            </p>
-          </div>
-
-          {/* Footer — pinned to bottom via mt-auto */}
-          <div className="mt-auto flex items-center justify-between pt-2.5 border-t border-border-mute/40">
-            <span className="text-[9px] font-mono text-text-muted">
-              REF #{alert.id?.slice(0, 8).toUpperCase()}
-            </span>
-            <button
-              onClick={() => onResolve(alert.id)}
-              disabled={isResolving}
-              className="px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase
-                tracking-widest bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20
-                border border-emerald-500/20 transition-all disabled:opacity-40
-                disabled:cursor-not-allowed cursor-pointer"
-            >
-              {isResolving ? "Resolving..." : "Resolve"}
-            </button>
-          </div>
+        {/* Row 2: affected part icon + part label + machine type */}
+        <div className="flex items-center gap-1.5">
+          {React.createElement(
+            getPartIcon(alert.message ?? ""),
+            { className: `h-3.5 w-3.5 shrink-0 ${s.text}` }
+          )}
+          <span className={`text-xs font-semibold ${s.text}`}>{partLabel}</span>
+          <span className="text-[10px] text-text-muted font-mono">
+            &middot; {machineLabel}
+          </span>
         </div>
+
+        {/* Row 3: alert message */}
+        <p className="text-xs text-text-muted leading-relaxed line-clamp-2">
+          {alert.message}
+        </p>
+
+        {/* Row 4: footer */}
+        <div className="flex items-center justify-between pt-2 border-t border-border-mute/40">
+          <span className="text-[10px] font-mono text-text-muted">
+            #{alert.id?.slice(0, 8).toUpperCase()}
+          </span>
+          <button
+            onClick={() => onResolve(alert.id)}
+            disabled={isResolving}
+            className={`text-[11px] font-mono font-semibold transition-colors
+              cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed
+              ${isResolving ? "text-text-muted" : "text-emerald-500 hover:text-emerald-400"}`}
+          >
+            {isResolving ? "Resolving..." : "Mark resolved"}
+          </button>
+        </div>
+
       </div>
     </div>
   );
@@ -392,22 +380,22 @@ export default function Dashboard() {
 
       {/* Active Alerts — Top 5 Priority Grid */}
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="h-4 w-4 text-red-500" />
-          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
-            Active Alerts
-          </h2>
-          {alerts.length > 0 && (
-            <>
-              <span className="text-[9px] font-mono font-bold bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full border border-red-500/20">
-                {alerts.length} ACTIVE
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-red-500" />
+            <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
+              Active Alerts
+            </h2>
+            {alerts.length > 0 && (
+              <span className="text-[9px] font-mono font-bold text-red-500">
+                {alerts.length}
               </span>
-              {alerts.length > 5 && (
-                <span className="text-[9px] font-mono text-text-muted ml-auto">
-                  Showing top 5 by severity
-                </span>
-              )}
-            </>
+            )}
+          </div>
+          {alerts.length > 5 && (
+            <span className="text-[10px] font-mono text-text-muted">
+              Top 5 by severity
+            </span>
           )}
         </div>
 
