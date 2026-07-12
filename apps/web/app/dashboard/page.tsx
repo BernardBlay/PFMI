@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Cpu, AlertTriangle, ArrowUpRight, CheckCircle2, ShieldAlert, Activity,
-  Flame, TrendingUp, TrendingDown, BarChart3, Zap
+  Flame, TrendingUp, TrendingDown, BarChart3, Zap,
+  Truck, HardHat, Layers, Droplets, Wind, Power, Wrench,
+  Thermometer, Gauge, RotateCw, Settings, Battery, Radio, Filter, CircleDot
 } from "lucide-react";
 import { Equipment, Alert } from "@/lib/db";
 
@@ -111,12 +113,102 @@ function FleetStats({ equipment, alerts }: { equipment: Equipment[]; alerts: Ale
   );
 }
 
+/* -- Machine class: icon + label (derived from equipment name) -------- */
+type IconComponent = React.ComponentType<{ className?: string }>;
+
+function getMachineIcon(name: string): IconComponent {
+  const n = name.toLowerCase();
+  if (n.includes("truck") || n.includes("hauler") || n.includes("dump")) return Truck;
+  if (n.includes("loader"))  return HardHat;
+  if (n.includes("excavator")) return HardHat;
+  if (n.includes("dozer") || n.includes("bulldozer")) return HardHat;
+  if (n.includes("grader")) return HardHat;
+  if (n.includes("conveyor") || n.includes("belt")) return Layers;
+  if (n.includes("pump")) return Droplets;
+  if (n.includes("compressor")) return Wind;
+  if (n.includes("generator") || n.includes("genset")) return Power;
+  return Cpu;
+}
+
+function getMachineLabel(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("dump") || n.includes("hauler")) return "Dump Truck";
+  if (n.includes("truck")) return "Truck";
+  if (n.includes("loader")) return "Wheel Loader";
+  if (n.includes("excavator")) return "Excavator";
+  if (n.includes("dozer") || n.includes("bulldozer")) return "Bulldozer";
+  if (n.includes("grader")) return "Motor Grader";
+  if (n.includes("conveyor") || n.includes("belt")) return "Conveyor";
+  if (n.includes("pump")) return "Pump";
+  if (n.includes("compressor")) return "Compressor";
+  if (n.includes("generator") || n.includes("genset")) return "Generator";
+  return "Equipment";
+}
+
+/* -- Affected part: icon + label (derived from alert message) --------- */
+function getPartIcon(message: string): IconComponent {
+  const m = message.toLowerCase();
+  if (m.includes("temperature") || m.includes("thermal") || m.includes("overheat") || m.includes("heat")) return Thermometer;
+  if (m.includes("vibration") || m.includes("vibrat")) return Activity;
+  if (m.includes("pressure")) return Gauge;
+  if (m.includes("bearing") || m.includes("rotation")) return RotateCw;
+  if (m.includes("electrical") || m.includes("voltage") || m.includes("power failure")) return Zap;
+  if (m.includes("hydraulic") || m.includes("fluid") || m.includes("leak")) return Droplets;
+  if (m.includes("oil")) return Droplets;
+  if (m.includes("gearbox") || m.includes("gear") || m.includes("transmission")) return Settings;
+  if (m.includes("battery") || m.includes("charge")) return Battery;
+  if (m.includes("cooling") || m.includes("coolant")) return Wind;
+  if (m.includes("sensor") || m.includes("signal")) return Radio;
+  if (m.includes("filter")) return Filter;
+  if (m.includes("brake")) return CircleDot;
+  if (m.includes("tire") || m.includes("tyre") || m.includes("wheel")) return CircleDot;
+  if (m.includes("engine") || m.includes("motor")) return Zap;
+  return Wrench;
+}
+
+function getPartLabel(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("temperature") || m.includes("overheat") || m.includes("thermal")) return "Engine Temp";
+  if (m.includes("heat")) return "Overheating";
+  if (m.includes("vibration") || m.includes("vibrat")) return "Vibration";
+  if (m.includes("pressure")) return "Pressure";
+  if (m.includes("bearing") || m.includes("rotation")) return "Bearing";
+  if (m.includes("electrical") || m.includes("voltage")) return "Electrical";
+  if (m.includes("power failure")) return "Power";
+  if (m.includes("hydraulic")) return "Hydraulics";
+  if (m.includes("fluid") || m.includes("leak")) return "Fluid/Leak";
+  if (m.includes("oil")) return "Oil System";
+  if (m.includes("gearbox") || m.includes("gear")) return "Gearbox";
+  if (m.includes("transmission")) return "Transmission";
+  if (m.includes("battery") || m.includes("charge")) return "Battery";
+  if (m.includes("cooling") || m.includes("coolant")) return "Cooling";
+  if (m.includes("sensor") || m.includes("signal")) return "Sensor";
+  if (m.includes("filter")) return "Filter";
+  if (m.includes("brake")) return "Brakes";
+  if (m.includes("tire") || m.includes("tyre")) return "Tires";
+  if (m.includes("engine")) return "Engine";
+  if (m.includes("motor")) return "Motor";
+  return "Component";
+}
+
+const SEVERITY_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+
+function severityStyle(severity: string) {
+  switch (severity) {
+    case "Critical": return { text: "text-red-500",    bg: "bg-red-500/10",    border: "border-red-500/25",    bar: "bg-red-500",    iconBg: "bg-red-500/12" };
+    case "High":     return { text: "text-orange-500", bg: "bg-orange-500/10", border: "border-orange-500/25", bar: "bg-orange-500", iconBg: "bg-orange-500/12" };
+    case "Medium":   return { text: "text-amber-500",  bg: "bg-amber-500/10",  border: "border-amber-500/20",  bar: "bg-amber-500",  iconBg: "bg-amber-500/12" };
+    default:         return { text: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20",   bar: "bg-blue-400",   iconBg: "bg-blue-500/10" };
+  }
+}
+
 /* -- Main Dashboard -------------------------------------------------- */
 export default function Dashboard() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [mlStatus, setMlStatus] = useState<"online" | "offline" | "checking">("checking");
+  const [resolving, setResolving] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -152,15 +244,21 @@ export default function Dashboard() {
   }, []);
 
   const resolveAlert = async (id: string) => {
+    setResolving(id);
+    // Optimistic removal — instant visual feedback
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
     try {
-      const res = await fetch("/api/alerts", {
+      await fetch("/api/alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (res.ok) fetchData();
     } catch (err) {
       console.error("Failed to resolve alert:", err);
+      // Re-fetch to restore correct state if the request failed
+      fetchData();
+    } finally {
+      setResolving(null);
     }
   };
 
@@ -196,67 +294,106 @@ export default function Dashboard() {
       {/* Fleet Stats Row */}
       {!loading && <FleetStats equipment={equipment} alerts={alerts} />}
 
-      {/* Alerts Grid */}
+      {/* Active Alerts — Top 5 Priority Grid */}
       <section className="space-y-4">
-        <div className="flex items-center gap-2 text-red-500">
-          <ShieldAlert className="h-4.5 w-4.5" />
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-red-500" />
           <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
-            Active Alerts Priority Queue
+            Active Alerts
           </h2>
           {alerts.length > 0 && (
-            <span className="ml-auto text-[9px] font-mono font-bold bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full border border-red-500/20">
-              {alerts.length} ACTIVE
-            </span>
+            <>
+              <span className="text-[9px] font-mono font-bold bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full border border-red-500/20">
+                {alerts.length} ACTIVE
+              </span>
+              {alerts.length > 5 && (
+                <span className="text-[9px] font-mono text-text-muted ml-auto">
+                  Showing top 5 by severity
+                </span>
+              )}
+            </>
           )}
         </div>
 
         {alerts.length === 0 ? (
-          <div className="border border-border-mute bg-surface rounded-2xl p-6 flex flex-col items-center justify-center text-center text-text-muted">
+          <div className="border border-border-mute bg-surface rounded-2xl p-6 flex flex-col items-center justify-center text-center">
             <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
             <span className="text-xs font-semibold text-foreground">All systems nominal</span>
-            <p className="text-[10px] text-text-muted mt-0.5">No critical deviations flagged currently.</p>
+            <p className="text-[10px] text-text-muted mt-0.5">No critical deviations flagged.</p>
           </div>
         ) : (
-          <div className="grid gap-3">
-            {alerts.map((alert) => {
-              const isCritical = alert.severity === "Critical" || alert.severity === "High";
-              return (
-                <div
-                  key={alert.id}
-                  className={`p-4 rounded-xl bg-surface border transition-all duration-300 hover:-translate-y-0.5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 ${
-                    isCritical
-                      ? "border-red-500/25 hover:border-red-500/40 hover:shadow-[0_4px_20px_rgba(239,68,68,0.08)]"
-                      : "border-amber-500/20 hover:border-amber-500/35 hover:shadow-[0_4px_20px_rgba(245,158,11,0.08)]"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className={`h-4.5 w-4.5 shrink-0 mt-0.5 ${isCritical ? "text-red-500" : "text-amber-500"}`} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border uppercase ${
-                          isCritical
-                            ? "bg-red-500/10 text-red-500 border-red-500/20"
-                            : "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                        }`}>
-                          {alert.severity}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {[...alerts]
+              .sort((a, b) => (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0))
+              .slice(0, 5)
+              .map((alert) => {
+                const style      = severityStyle(alert.severity);
+                const MachineIcon = getMachineIcon(alert.equipmentName ?? "");
+                const machineLabel = getMachineLabel(alert.equipmentName ?? "");
+                const PartIcon    = getPartIcon(alert.message ?? "");
+                const partLabel   = getPartLabel(alert.message ?? "");
+                const isResolving = resolving === alert.id;
+
+                return (
+                  <div
+                    key={alert.id}
+                    className={`rounded-xl bg-surface border overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${style.border}`}
+                  >
+                    {/* Severity colour bar */}
+                    <div className={`h-1 w-full ${style.bar}`} />
+
+                    <div className="p-4 flex gap-4">
+                      {/* Left: Machine class block */}
+                      <div className={`shrink-0 w-16 rounded-xl flex flex-col items-center justify-center gap-1.5 py-3 ${style.iconBg}`}>
+                        <MachineIcon className={`h-6 w-6 ${style.text}`} />
+                        <span className={`text-[7.5px] font-mono font-bold uppercase tracking-wide text-center leading-tight ${style.text}`}>
+                          {machineLabel}
                         </span>
-                        <span className="font-bold text-xs text-foreground">{alert.equipmentName}</span>
                       </div>
-                      <p className="text-[11px] text-text-muted mt-1 leading-relaxed">{alert.message}</p>
+
+                      {/* Right: Alert detail */}
+                      <div className="flex-1 min-w-0">
+                        {/* Unit name + severity */}
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <span className="font-bold text-sm text-foreground leading-tight truncate">
+                            {alert.equipmentName}
+                          </span>
+                          <span className={`shrink-0 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${style.bg} ${style.text} ${style.border}`}>
+                            {alert.severity}
+                          </span>
+                        </div>
+
+                        {/* Affected part pill */}
+                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-2 ${style.bg}`}>
+                          <PartIcon className={`h-3 w-3 ${style.text}`} />
+                          <span className={`text-[9px] font-mono font-bold uppercase tracking-wider ${style.text}`}>
+                            {partLabel}
+                          </span>
+                        </div>
+
+                        {/* Alert message */}
+                        <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">
+                          {alert.message}
+                        </p>
+
+                        {/* Footer: ref ID + resolve */}
+                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border-mute/40">
+                          <span className="text-[9px] font-mono text-text-muted">
+                            REF #{alert.id?.slice(0, 8).toUpperCase()}
+                          </span>
+                          <button
+                            onClick={() => resolveAlert(alert.id)}
+                            disabled={isResolving}
+                            className="px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-widest bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            {isResolving ? "Resolving..." : "Resolve"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-4">
-                    <span className="text-[9px] font-mono text-text-muted">{alert.id?.slice(0, 8)}</span>
-                    <button
-                      onClick={() => resolveAlert(alert.id)}
-                      className="px-3.5 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-widest bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all hover:-translate-y-0.5 cursor-pointer"
-                    >
-                      Resolve
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
       </section>
