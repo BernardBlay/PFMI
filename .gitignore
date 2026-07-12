@@ -1,3 +1,7 @@
+# Project analysis & planning (local only)
+mine/
+
+# Legacy root-level files (moved to apps/ml-service/models/drill_model/)
 ./best_lstm_model.keras
 ./generate_dataset.py
 ./predict.py
@@ -5,4 +9,4 @@
 ./requirements.txt
 ./scaler_paramas.npx
 ./synthetic_drillrig_data.csv
-./train_lstm.py   
+./train_lstm.py
