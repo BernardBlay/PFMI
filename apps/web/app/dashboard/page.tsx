@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Cpu, AlertTriangle, ArrowUpRight, CheckCircle2, ShieldAlert, Activity,
@@ -300,22 +300,28 @@ function AlertCard({
 
 /* -- Main Dashboard -------------------------------------------------- */
 export default function Dashboard() {
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [mlStatus, setMlStatus] = useState<"online" | "offline" | "checking">("checking");
-  const [resolving, setResolving] = useState<string | null>(null);
+  const [equipment, setEquipment]     = useState<Equipment[]>([]);
+  const [alerts, setAlerts]           = useState<Alert[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [mlStatus, setMlStatus]       = useState<"online" | "offline" | "checking">("checking");
+  const [resolving, setResolving]     = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  // Ref so background polls don't restore an optimistically-removed alert
+  const resolvingRef = useRef<string | null>(null);
+
+  // ── Initial full load ────────────────────────────────────────────────
   const fetchData = async () => {
     try {
       const [eqRes, alertRes] = await Promise.all([
         fetch("/api/equipment"),
         fetch("/api/alerts"),
       ]);
-      const eqData = await eqRes.json();
+      const eqData    = await eqRes.json();
       const alertData = await alertRes.json();
-      setEquipment(Array.isArray(eqData) ? eqData : []);
+      setEquipment(Array.isArray(eqData)    ? eqData    : []);
       setAlerts(Array.isArray(alertData) ? alertData : []);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
@@ -323,37 +329,53 @@ export default function Dashboard() {
     }
   };
 
-  const checkMlService = async () => {
-    try {
-      const serviceUrl = process.env.NEXT_PUBLIC_ML_SERVICE_URL || "http://localhost:8000";
-      const res = await fetch(`${serviceUrl}/health`, { signal: AbortSignal.timeout(3000) });
-      if (res.ok) setMlStatus("online");
-      else setMlStatus("offline");
-    } catch {
-      setMlStatus("offline");
-    }
-  };
-
   useEffect(() => {
     fetchData();
-    checkMlService();
+
+    // ── Silent alert poll every 20 s ──────────────────────────────────
+    const pollAlerts = async () => {
+      if (resolvingRef.current) return; // skip if a resolve is in flight
+      try {
+        const res  = await fetch("/api/alerts");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setAlerts(data);
+          setLastUpdated(new Date());
+        }
+      } catch { /* silent — don't disrupt the UI on a failed poll */ }
+    };
+
+    // ── ML status poll every 60 s ─────────────────────────────────────
+    const pollMl = async () => {
+      try {
+        const url = process.env.NEXT_PUBLIC_ML_SERVICE_URL || "http://localhost:8000";
+        const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(3000) });
+        setMlStatus(res.ok ? "online" : "offline");
+      } catch { setMlStatus("offline"); }
+    };
+
+    pollMl();
+    const alertTimer = setInterval(pollAlerts, 20_000);
+    const mlTimer    = setInterval(pollMl,     60_000);
+
+    return () => { clearInterval(alertTimer); clearInterval(mlTimer); };
   }, []);
 
   const resolveAlert = async (id: string) => {
+    resolvingRef.current = id;
     setResolving(id);
-    // Optimistic removal — instant visual feedback
-    setAlerts((prev) => prev.filter((a) => a.id !== id));
+    setAlerts((prev) => prev.filter((a) => a.id !== id)); // optimistic removal
     try {
       await fetch("/api/alerts", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body:    JSON.stringify({ id }),
       });
     } catch (err) {
       console.error("Failed to resolve alert:", err);
-      // Re-fetch to restore correct state if the request failed
-      fetchData();
+      fetchData(); // restore correct state on failure
     } finally {
+      resolvingRef.current = null;
       setResolving(null);
     }
   };
@@ -392,15 +414,25 @@ export default function Dashboard() {
 
       {/* Active Alerts — Top 5 Priority Grid */}
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="h-4 w-4 text-red-500" />
-          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
-            Active Alerts
-          </h2>
-          {alerts.length > 0 && (
-            <span className="text-[9px] font-mono font-bold text-red-500">
-              {alerts.length}
-            </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-red-500" />
+            <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted">
+              Active Alerts
+            </h2>
+            {alerts.length > 0 && (
+              <span className="text-[9px] font-mono font-bold text-red-500">
+                {alerts.length}
+              </span>
+            )}
+          </div>
+          {lastUpdated && (
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-mono text-text-muted">
+                {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </span>
+            </div>
           )}
         </div>
 
