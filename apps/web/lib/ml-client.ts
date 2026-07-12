@@ -3,9 +3,9 @@
  * ----------------------
  * Connects to the FastAPI ML service at NEXT_PUBLIC_ML_SERVICE_URL.
  * Endpoints used:
- *   GET  /health              → service + model status
- *   POST /predict/generic     → XGBoost generic industrial model (best match for pump sensors)
- *   POST /predict             → legacy fallback
+ *   GET  /health        → service + model status
+ *   POST /predict/rul   → physics-informed RUL engine (hours until failure)
+ *   POST /predict       → legacy fallback (also RUL-powered on server)
  */
 
 function getServiceUrl(): string {
@@ -28,64 +28,110 @@ export interface MLHealthStatus {
   details: Record<string, string>;
 }
 
+export interface SensorBreakdown {
+  sensor: string;
+  current: number;
+  nominal: number;
+  failure_threshold: number;
+  margin_pct: number;   // 100 = healthy, 0 = at failure threshold
+  rul_hours: number;
+  unit: string;
+  is_critical: boolean;
+}
+
 export interface MLPrediction {
-  remainingUsefulLife: number;
+  // Core RUL values — now real numbers, not mock days
+  rul_hours: number;          // e.g. 78.4 — the main display value
+  rul_days: number;           // e.g. 9.8 days at 8h/day operation
+  remainingUsefulLife: number; // same as rul_hours (backwards compat)
+
   anomalyDetected: boolean;
+  anomaly_detected: boolean;
   confidence: number;
   failureMode: string;
+  failure_mode: string;
+  severity: "normal" | "low" | "medium" | "high" | "critical";
+  degradation_pct: number;    // 0 = new, 100 = failed
+  recommendation: string;     // plain-English action e.g. "Schedule service in 78h"
+  sensor_breakdown: SensorBreakdown[];
   source: "ml" | "mock";
 }
 
-// ─── Sensor name mapping ────────────────────────────────────────────────────
-// The simulator uses human-friendly keys (temperature, vibration, pressure).
-// The generic XGBoost model expects AI4I-style feature names.
-// This function maps simulator readings → model feature vector.
+// ─── Sensor mapping ────────────────────────────────────────────────────────
+// Maps simulator keys → RUL engine sensor names
+// The engine accepts any subset — extra keys are ignored gracefully.
 
-function mapSimulatorSensorsToGeneric(sensors: {
+function buildRULSensors(sensors: {
   temperature: number;
   vibration: number;
   pressure: number;
 }): Record<string, number> {
   const { temperature, vibration, pressure } = sensors;
 
-  // Reasonable synthetic defaults for features the simulator doesn't expose
+  // Derive proxy values for sensors not directly exposed by the simulator
   const rpm = 1450;
-  const torque = vibration * 18;          // proxy: higher vibration → more torque stress
-  const toolWear = Math.max(0, (temperature - 60) * 2.5); // proxy: heat accelerates wear
-  const airTemp = 25.0;
+  const torque = vibration * 18;
+  const toolWear = Math.max(0, (temperature - 60) * 2.5);
 
   return {
-    air_temp: airTemp,
-    process_temp: temperature,
+    temperature,
+    vibration,
+    pressure,
     rpm,
     torque,
     tool_wear: toolWear,
-    // Derived features the model computes internally, but we pre-supply them
-    // so the endpoint doesn't have to re-derive (it will if missing anyway):
-    power_w: (rpm * torque * 2 * Math.PI) / 60,
-    temp_diff: temperature - airTemp,
-    wear_x_torque: toolWear * torque,
-    // Extra contextual channels
-    vibration_rms: vibration,
+    // also pass AI4I-style names for generic model compat
+    process_temp: temperature,
     pressure_bar: pressure,
+    vibration_rms: vibration,
   };
 }
 
-// RUL estimate from generic model output:
-// "normal" → high RUL, "wear" → medium, failure modes → low
-function rulFromPrediction(prediction: string, confidence: number): number {
-  const base: Record<string, number> = {
-    normal: 240,
-    "no_failure": 240,
-    "heat_dissipation": 60,
-    "power_failure": 30,
-    "overstrain": 20,
-    "tool_wear": 45,
-    "random_failures": 15,
+// ─── Mock fallback ─────────────────────────────────────────────────────────
+// Used when ML service is offline — mirrors the RUL engine logic in TS.
+
+function mockPrediction(sensors: {
+  temperature: number;
+  vibration: number;
+  pressure: number;
+}): MLPrediction {
+  const { temperature, vibration } = sensors;
+
+  const isCritical = temperature > 90 || vibration > 8;
+  const isHigh = temperature > 80 || vibration > 5;
+
+  let rul_hours = 240;
+  let failure_mode = "normal";
+  let severity: MLPrediction["severity"] = "normal";
+  let recommendation = `Machine healthy. Next scheduled service in ~240 hours (30.0 days).`;
+
+  if (isCritical) {
+    rul_hours = temperature > 90 ? 12 : 18;
+    failure_mode = temperature > 90 ? "thermal_runaway" : "bearing_failure";
+    severity = "critical";
+    recommendation = `STOP MACHINE — ${failure_mode.replace(/_/g, " ")} detected. Estimated ${rul_hours} hours remaining. Schedule immediate inspection.`;
+  } else if (isHigh) {
+    rul_hours = temperature > 80 ? 60 : 80;
+    failure_mode = temperature > 80 ? "overheating" : "bearing_wear";
+    severity = "high";
+    recommendation = `URGENT — ${failure_mode.replace(/_/g, " ")} progressing. Schedule maintenance within ${rul_hours} hours (${(rul_hours / 8).toFixed(1)} days).`;
+  }
+
+  return {
+    rul_hours,
+    rul_days: Math.round((rul_hours / 8) * 10) / 10,
+    remainingUsefulLife: rul_hours,
+    anomalyDetected: isCritical || isHigh,
+    anomaly_detected: isCritical || isHigh,
+    confidence: 0.75,
+    failureMode: failure_mode,
+    failure_mode,
+    severity,
+    degradation_pct: isCritical ? 90 : isHigh ? 55 : 5,
+    recommendation,
+    sensor_breakdown: [],
+    source: "mock",
   };
-  const baseDays = base[prediction] ?? 90;
-  // Scale by confidence — lower confidence = more conservative estimate
-  return Math.round(baseDays * (0.6 + confidence * 0.4));
 }
 
 // ─── API calls ─────────────────────────────────────────────────────────────
@@ -110,20 +156,16 @@ export async function checkMLHealth(): Promise<MLHealthStatus> {
       details: data.details ?? {},
     };
   } catch {
-    return {
-      online: false,
-      status: "offline",
-      modelsLoaded: 0,
-      modelsTotal: 0,
-      details: {},
-    };
+    return { online: false, status: "offline", modelsLoaded: 0, modelsTotal: 0, details: {} };
   }
 }
 
 /**
- * Call /predict/generic with mapped sensor data.
- * Falls back to /predict (legacy) if generic returns 503.
- * Falls back to mock data if service is unreachable.
+ * Primary prediction function.
+ *
+ * Calls /predict/rul first (full RUL breakdown with hours + recommendation).
+ * Falls back to /predict if /predict/rul not available.
+ * Falls back to mock if service is offline.
  */
 export async function predictFromSensors(sensors: {
   temperature: number;
@@ -131,55 +173,88 @@ export async function predictFromSensors(sensors: {
   pressure: number;
 }): Promise<MLPrediction> {
   const url = getServiceUrl();
-  const mappedSensors = mapSimulatorSensorsToGeneric(sensors);
+  const rulSensors = buildRULSensors(sensors);
 
-  // ── Try /predict (working endpoint) ──
+  // ── Primary: /predict/rul ─────────────────────────────────────────────
   try {
-    const res = await fetch(`${url}/predict`, {
+    const res = await fetch(`${url}/predict/rul`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sensors: mappedSensors }),
+      body: JSON.stringify({ sensors: rulSensors, operating_hours_per_day: 8.0 }),
       signal: AbortSignal.timeout(4000),
     });
 
     if (res.ok) {
-      const data = await res.json();
+      const d = await res.json();
       return {
-        remainingUsefulLife: Number(data.remainingUsefulLife ?? 42),
-        anomalyDetected: Boolean(data.anomalyDetected ?? false),
-        confidence: Number(data.confidence ?? 0.89),
-        failureMode: data.anomalyDetected ? "detected" : "normal",
-        source: "ml",
+        rul_hours:           Number(d.rul_hours ?? 240),
+        rul_days:            Number(d.rul_days ?? 30),
+        remainingUsefulLife: Number(d.rul_hours ?? 240),
+        anomalyDetected:     Boolean(d.anomaly_detected ?? d.anomalyDetected ?? false),
+        anomaly_detected:    Boolean(d.anomaly_detected ?? false),
+        confidence:          Number(d.confidence ?? 0.85),
+        failureMode:         String(d.failure_mode ?? "normal"),
+        failure_mode:        String(d.failure_mode ?? "normal"),
+        severity:            (d.severity ?? "normal") as MLPrediction["severity"],
+        degradation_pct:     Number(d.degradation_pct ?? 0),
+        recommendation:      String(d.recommendation ?? ""),
+        sensor_breakdown:    Array.isArray(d.sensor_breakdown) ? d.sensor_breakdown : [],
+        source:              "ml",
       };
     }
   } catch (err: any) {
-    console.warn("[ml-client] /predict unreachable:", err?.message);
+    console.warn("[ml-client] /predict/rul unreachable, trying /predict:", err?.message);
   }
 
-  // ── Mock fallback ──
-  const isCritical = sensors.temperature > 90 || sensors.vibration > 8;
-  const isWarning = sensors.temperature > 80 || sensors.vibration > 5;
-  return {
-    remainingUsefulLife: isCritical ? 12 : isWarning ? 45 : 240,
-    anomalyDetected: isCritical || isWarning,
-    confidence: 0.88,
-    failureMode: isCritical ? "overstrain" : isWarning ? "heat_dissipation" : "normal",
-    source: "mock",
-  };
+  // ── Fallback: /predict ────────────────────────────────────────────────
+  try {
+    const res = await fetch(`${url}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sensors: rulSensors, operating_hours_per_day: 8.0 }),
+      signal: AbortSignal.timeout(4000),
+    });
+
+    if (res.ok) {
+      const d = await res.json();
+      const rul_hours = Number(d.rul_hours ?? d.remainingUsefulLife ?? 240);
+      return {
+        rul_hours,
+        rul_days:            Number(d.rul_days ?? rul_hours / 8),
+        remainingUsefulLife: rul_hours,
+        anomalyDetected:     Boolean(d.anomaly_detected ?? d.anomalyDetected ?? false),
+        anomaly_detected:    Boolean(d.anomaly_detected ?? false),
+        confidence:          Number(d.confidence ?? 0.85),
+        failureMode:         String(d.failure_mode ?? "normal"),
+        failure_mode:        String(d.failure_mode ?? "normal"),
+        severity:            (d.severity ?? "normal") as MLPrediction["severity"],
+        degradation_pct:     Number(d.degradation_pct ?? 0),
+        recommendation:      String(d.recommendation ?? ""),
+        sensor_breakdown:    Array.isArray(d.sensor_breakdown) ? d.sensor_breakdown : [],
+        source:              "ml",
+      };
+    }
+  } catch (err: any) {
+    console.warn("[ml-client] /predict also unreachable:", err?.message);
+  }
+
+  // ── Mock fallback ─────────────────────────────────────────────────────
+  return mockPrediction(sensors);
 }
 
-// ─── Legacy export (used by existing callers) ──────────────────────────────
+// ─── Legacy export ─────────────────────────────────────────────────────────
+
 export const mlClient = {
   predictRUL: async (sensors: Record<string, number>) => {
     const result = await predictFromSensors({
       temperature: sensors.temperature ?? 68,
-      vibration: sensors.vibration ?? 2.3,
-      pressure: sensors.pressure ?? 4.2,
+      vibration:   sensors.vibration   ?? 2.3,
+      pressure:    sensors.pressure    ?? 4.2,
     });
     return {
-      remainingUsefulLife: result.remainingUsefulLife,
-      anomalyDetected: result.anomalyDetected,
-      confidence: result.confidence,
+      remainingUsefulLife: result.rul_hours,
+      anomalyDetected:     result.anomalyDetected,
+      confidence:          result.confidence,
     };
   },
 };
