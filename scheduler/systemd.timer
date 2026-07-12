@@ -1,0 +1,22 @@
+# PFMI ML Prediction Timer - systemd timer unit
+# ==============================================
+# Triggers the ML prediction service every 30 minutes
+#
+# See systemd.service for installation instructions
+
+[Unit]
+Description=PFMI ML Prediction Timer (every 30 minutes)
+Requires=pfmi-predictions.service
+
+[Timer]
+# Run every 30 minutes
+OnCalendar=*:0/30
+# Run 5 minutes after boot if missed
+OnBootSec=5min
+# Don't accumulate missed runs
+Persistent=false
+# Allow slight time drift for better distribution
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

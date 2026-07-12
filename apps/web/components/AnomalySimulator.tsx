@@ -136,6 +136,14 @@ export default function AnomalySimulator() {
   const isMLLive = mlPrediction?.source === "ml";
   const mlOnline = mlHealth?.online ?? false;
 
+  // Display RUL as hours (the real prediction) with days in parentheses
+  const rulDisplay = mlPrediction
+    ? `${mlPrediction.rul_hours.toFixed(0)}h`
+    : `${rul}h`;
+  const rulDaysDisplay = mlPrediction
+    ? `(${mlPrediction.rul_days.toFixed(1)} days)`
+    : "";
+
   const presets = [
     { key: "normal",    label: "Normal Baseline",      desc: "Standard vibration waves, nominal temperatures (~68°C), and max RUL.", Icon: CheckCircle2, color: "emerald" },
     { key: "thermal",   label: "Thermal Spike Anomaly", desc: "Heats temperature to >90°C. Simulates cooling block failures.",          Icon: Thermometer,  color: "red"     },
@@ -146,8 +154,13 @@ export default function AnomalySimulator() {
     { Icon: Thermometer, label: "Temp",    value: `${temperature} °C`,   valueClass: "" },
     { Icon: Activity,    label: "Vibe",    value: `${vibration} mm/s`,   valueClass: "" },
     { Icon: Gauge,       label: "Press",   value: `${pressure} bar`,     valueClass: "" },
-    { Icon: Sparkles,    label: "Est RUL", value: `${rul} Days`,
-      valueClass: rul > 100 ? "text-foreground" : rul > 30 ? "text-amber-500" : "text-red-500" },
+    { Icon: Sparkles,    label: "Est RUL",
+      value: rulDisplay,
+      subValue: rulDaysDisplay,
+      valueClass: mlPrediction
+        ? (mlPrediction.rul_hours > 100 ? "text-foreground" : mlPrediction.rul_hours > 30 ? "text-amber-500" : "text-red-500")
+        : (rul > 100 ? "text-foreground" : rul > 30 ? "text-amber-500" : "text-red-500"),
+    },
   ];
 
   return (
@@ -170,7 +183,7 @@ export default function AnomalySimulator() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-stretch w-full">
 
-          {/* ── Left: Preset selector + ML status ── */}
+          {/* -- Left: Preset selector + ML status -- */}
           <div className="flex flex-col justify-between p-5 bg-surface border border-border-mute rounded-2xl shadow-sm min-w-0">
             <div>
               <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-text-muted mb-4">
@@ -239,7 +252,7 @@ export default function AnomalySimulator() {
             </div>
           </div>
 
-          {/* ── Right: Live dashboard panel ── */}
+          {/* -- Right: Live dashboard panel -- */}
           <div className="bg-surface border border-border-mute rounded-2xl shadow-xl overflow-hidden flex flex-col justify-between min-w-0">
 
             {/* Console header */}
@@ -267,13 +280,16 @@ export default function AnomalySimulator() {
 
             {/* Sensor stat cards */}
             <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-border-mute">
-              {statCards.map(({ Icon, label, value, valueClass }) => (
+              {statCards.map(({ Icon, label, value, valueClass, subValue }: any) => (
                 <div key={label} className="bg-background border border-border-mute p-3.5 rounded-xl">
                   <div className="flex items-center gap-1.5 mb-1 text-text-muted">
                     <Icon className="h-3.5 w-3.5" />
                     <span className="text-[9px] font-mono uppercase font-bold tracking-wider">{label}</span>
                   </div>
-                  <p className={`text-base font-mono font-bold ${valueClass || "text-foreground"}`}>{value}</p>
+                  <p className={`text-base font-mono font-bold leading-tight ${valueClass || "text-foreground"}`}>{value}</p>
+                  {subValue && (
+                    <p className="text-[9px] font-mono text-text-muted mt-0.5">{subValue}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -293,6 +309,28 @@ export default function AnomalySimulator() {
                 <span className="text-[9px] font-mono font-bold text-foreground shrink-0">
                   {(mlPrediction.confidence * 100).toFixed(1)}%
                 </span>
+              </div>
+            )}
+
+            {/* Recommendation bar — the core RUL pitch */}
+            {mlPrediction && mlPrediction.recommendation && (
+              <div className={`px-5 py-3 border-b border-border-mute flex items-start gap-2.5 ${
+                mlPrediction.severity === "critical" ? "bg-red-500/5" :
+                mlPrediction.severity === "high" ? "bg-orange-500/5" :
+                mlPrediction.severity === "medium" ? "bg-amber-500/5" : "bg-emerald-500/5"
+              }`}>
+                <div className={`shrink-0 mt-0.5 h-2 w-2 rounded-full ${
+                  mlPrediction.severity === "critical" ? "bg-red-500 animate-pulse" :
+                  mlPrediction.severity === "high" ? "bg-orange-500" :
+                  mlPrediction.severity === "medium" ? "bg-amber-500" : "bg-emerald-500"
+                }`} />
+                <p className={`text-[10px] font-mono leading-relaxed ${
+                  mlPrediction.severity === "critical" ? "text-red-500" :
+                  mlPrediction.severity === "high" ? "text-orange-500" :
+                  mlPrediction.severity === "medium" ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"
+                }`}>
+                  {mlPrediction.recommendation}
+                </p>
               </div>
             )}
 

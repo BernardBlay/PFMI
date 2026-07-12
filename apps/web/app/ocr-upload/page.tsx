@@ -1,15 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { UploadCloud, FileText, Loader2, CheckCircle2, Cpu } from "lucide-react";
+import { UploadCloud, FileText, Loader2, CheckCircle2, Cpu, Lock } from "lucide-react";
+import { isAuthenticated } from "@/lib/auth";
 
 export default function OCRUpload() {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = () => {
+      if (!isAuthenticated()) {
+        router.push("/login");
+      } else {
+        setIsChecking(false);
+      }
+    };
+    
+    // Small delay to ensure localStorage is ready
+    setTimeout(checkAuth, 100);
+  }, [router]);
+
+  // Show nothing while checking auth
+  if (isChecking) {
+    return (
+      <main className="min-h-screen flex flex-col bg-background text-foreground">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        </div>
+      </main>
+    );
+  }
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();

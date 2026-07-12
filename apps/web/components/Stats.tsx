@@ -35,7 +35,7 @@ export default function Stats() {
         "Fast 94.2% model confidence"
       ],
       icon: Cpu,
-      colorClass: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+      colorClass: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
     },
     {
       title: "RUL Forecasting Model",
@@ -47,7 +47,7 @@ export default function Stats() {
         "Dynamic threshold adaptation"
       ],
       icon: TrendingUp,
-      colorClass: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+      colorClass: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
     }
   ];
 

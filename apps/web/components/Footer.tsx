@@ -1,9 +1,22 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Cpu } from "lucide-react";
+import { isAuthenticated } from "@/lib/auth";
 
 export default function Footer() {
+  const router = useRouter();
+
+  const handleOCRClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated()) {
+      router.push("/login");
+    } else {
+      router.push("/ocr-upload");
+    }
+  };
+
   return (
     <footer className="border-t border-border-mute bg-surface py-12 mt-auto no-print">
       <div className="mx-auto max-w-7xl px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -47,7 +60,9 @@ export default function Footer() {
           </h4>
           <ul className="space-y-2 text-[11px] text-text-muted">
             <li>
-              <Link href="/ocr-upload" className="hover:text-foreground transition-colors">OCR Ingestion</Link>
+              <button onClick={handleOCRClick} className="hover:text-foreground transition-colors cursor-pointer">
+                OCR Ingestion
+              </button>
             </li>
             <li>
               <a href="#" className="hover:text-foreground transition-colors">API Docs</a>
