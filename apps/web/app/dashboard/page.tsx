@@ -193,13 +193,109 @@ function getPartLabel(message: string): string {
 
 const SEVERITY_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 
-function severityStyle(severity: string) {
+type SeverityStyle = { text: string; bg: string; border: string; bar: string; iconBg: string };
+
+function severityStyle(severity: string): SeverityStyle {
   switch (severity) {
-    case "Critical": return { text: "text-red-500",    bg: "bg-red-500/10",    border: "border-red-500/25",    bar: "bg-red-500",    iconBg: "bg-red-500/12" };
-    case "High":     return { text: "text-orange-500", bg: "bg-orange-500/10", border: "border-orange-500/25", bar: "bg-orange-500", iconBg: "bg-orange-500/12" };
-    case "Medium":   return { text: "text-amber-500",  bg: "bg-amber-500/10",  border: "border-amber-500/20",  bar: "bg-amber-500",  iconBg: "bg-amber-500/12" };
+    case "Critical": return { text: "text-red-500",    bg: "bg-red-500/10",    border: "border-red-500/20",    bar: "bg-red-500",    iconBg: "bg-red-500/10" };
+    case "High":     return { text: "text-orange-500", bg: "bg-orange-500/10", border: "border-orange-500/20", bar: "bg-orange-500", iconBg: "bg-orange-500/10" };
+    case "Medium":   return { text: "text-amber-500",  bg: "bg-amber-500/10",  border: "border-amber-500/20",  bar: "bg-amber-500",  iconBg: "bg-amber-500/10" };
     default:         return { text: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20",   bar: "bg-blue-400",   iconBg: "bg-blue-500/10" };
   }
+}
+
+/* -- Alert card component -------------------------------------------- */
+function AlertCard({
+  alert,
+  onResolve,
+  isResolving,
+  spanFull,
+}: {
+  alert: Alert;
+  onResolve: (id: string) => void;
+  isResolving: boolean;
+  spanFull?: boolean;
+}) {
+  const s            = severityStyle(alert.severity);
+  const machineLabel = getMachineLabel(alert.equipmentName ?? "");
+  const partLabel    = getPartLabel(alert.message ?? "");
+
+  return (
+    <div
+      className={`flex flex-col rounded-xl bg-surface border overflow-hidden
+        transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
+        ${s.border} ${spanFull ? "lg:col-span-2" : ""}`}
+    >
+      {/* Severity bar */}
+      <div className={`h-1 w-full shrink-0 ${s.bar}`} />
+
+      {/* Body row — stretches to fill card height */}
+      <div className="flex flex-1">
+        {/* Left: machine icon column */}
+        <div
+          className={`w-18 shrink-0 flex flex-col items-center justify-center
+            gap-2 px-1 border-r border-border-mute/30 ${s.iconBg}`}
+        >
+          {React.createElement(getMachineIcon(alert.equipmentName ?? ""), { className: `h-7 w-7 ${s.text}` })}
+          <span
+            className={`text-[8px] font-mono font-bold uppercase tracking-wide
+              text-center leading-tight ${s.text}`}
+          >
+            {machineLabel}
+          </span>
+        </div>
+
+        {/* Right: content — flex-col, resolve pinned to bottom */}
+        <div className="flex flex-col flex-1 min-w-0 p-3.5 gap-2">
+          {/* Top section */}
+          <div className="flex flex-col gap-1.5">
+            {/* Unit name + severity badge */}
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-bold text-sm text-foreground leading-tight line-clamp-1">
+                {alert.equipmentName}
+              </span>
+              <span
+                className={`shrink-0 text-[8px] font-mono font-bold px-1.5 py-0.5
+                  rounded border uppercase ${s.bg} ${s.text} ${s.border}`}
+              >
+                {alert.severity}
+              </span>
+            </div>
+
+            {/* Affected part pill */}
+            <div className={`self-start inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${s.bg}`}>
+              {React.createElement(getPartIcon(alert.message ?? ""), { className: `h-2.5 w-2.5 ${s.text}` })}
+              <span className={`text-[9px] font-mono font-bold uppercase tracking-wide ${s.text}`}>
+                {partLabel}
+              </span>
+            </div>
+
+            {/* Alert message */}
+            <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">
+              {alert.message}
+            </p>
+          </div>
+
+          {/* Footer — pinned to bottom via mt-auto */}
+          <div className="mt-auto flex items-center justify-between pt-2.5 border-t border-border-mute/40">
+            <span className="text-[9px] font-mono text-text-muted">
+              REF #{alert.id?.slice(0, 8).toUpperCase()}
+            </span>
+            <button
+              onClick={() => onResolve(alert.id)}
+              disabled={isResolving}
+              className="px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase
+                tracking-widest bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20
+                border border-emerald-500/20 transition-all disabled:opacity-40
+                disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isResolving ? "Resolving..." : "Resolve"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* -- Main Dashboard -------------------------------------------------- */
@@ -321,81 +417,25 @@ export default function Dashboard() {
             <span className="text-xs font-semibold text-foreground">All systems nominal</span>
             <p className="text-[10px] text-text-muted mt-0.5">No critical deviations flagged.</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {[...alerts]
+        ) : (() => {
+            const top5 = [...alerts]
               .sort((a, b) => (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0))
-              .slice(0, 5)
-              .map((alert) => {
-                const style      = severityStyle(alert.severity);
-                const MachineIcon = getMachineIcon(alert.equipmentName ?? "");
-                const machineLabel = getMachineLabel(alert.equipmentName ?? "");
-                const PartIcon    = getPartIcon(alert.message ?? "");
-                const partLabel   = getPartLabel(alert.message ?? "");
-                const isResolving = resolving === alert.id;
-
-                return (
-                  <div
+              .slice(0, 5);
+            const isOdd = top5.length % 2 !== 0;
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {top5.map((alert, i) => (
+                  <AlertCard
                     key={alert.id}
-                    className={`rounded-xl bg-surface border overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${style.border}`}
-                  >
-                    {/* Severity colour bar */}
-                    <div className={`h-1 w-full ${style.bar}`} />
-
-                    <div className="p-4 flex gap-4">
-                      {/* Left: Machine class block */}
-                      <div className={`shrink-0 w-16 rounded-xl flex flex-col items-center justify-center gap-1.5 py-3 ${style.iconBg}`}>
-                        <MachineIcon className={`h-6 w-6 ${style.text}`} />
-                        <span className={`text-[7.5px] font-mono font-bold uppercase tracking-wide text-center leading-tight ${style.text}`}>
-                          {machineLabel}
-                        </span>
-                      </div>
-
-                      {/* Right: Alert detail */}
-                      <div className="flex-1 min-w-0">
-                        {/* Unit name + severity */}
-                        <div className="flex items-start justify-between gap-2 mb-1.5">
-                          <span className="font-bold text-sm text-foreground leading-tight truncate">
-                            {alert.equipmentName}
-                          </span>
-                          <span className={`shrink-0 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${style.bg} ${style.text} ${style.border}`}>
-                            {alert.severity}
-                          </span>
-                        </div>
-
-                        {/* Affected part pill */}
-                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-2 ${style.bg}`}>
-                          <PartIcon className={`h-3 w-3 ${style.text}`} />
-                          <span className={`text-[9px] font-mono font-bold uppercase tracking-wider ${style.text}`}>
-                            {partLabel}
-                          </span>
-                        </div>
-
-                        {/* Alert message */}
-                        <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">
-                          {alert.message}
-                        </p>
-
-                        {/* Footer: ref ID + resolve */}
-                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border-mute/40">
-                          <span className="text-[9px] font-mono text-text-muted">
-                            REF #{alert.id?.slice(0, 8).toUpperCase()}
-                          </span>
-                          <button
-                            onClick={() => resolveAlert(alert.id)}
-                            disabled={isResolving}
-                            className="px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-widest bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            {isResolving ? "Resolving..." : "Resolve"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
+                    alert={alert}
+                    onResolve={resolveAlert}
+                    isResolving={resolving === alert.id}
+                    spanFull={isOdd && i === top5.length - 1}
+                  />
+                ))}
+              </div>
+            );
+          })()}
       </section>
 
       {/* Equipment Status Grid */}
