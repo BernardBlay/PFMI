@@ -117,6 +117,7 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [mlStatus, setMlStatus] = useState<"online" | "offline" | "checking">("checking");
+  const [mlPredictionsLoading, setMlPredictionsLoading] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -128,10 +129,79 @@ export default function Dashboard() {
       const alertData = await alertRes.json();
       setEquipment(Array.isArray(eqData) ? eqData : []);
       setAlerts(Array.isArray(alertData) ? alertData : []);
+      
+      // After loading equipment, fetch ML predictions to update health scores
+      if (Array.isArray(eqData) && eqData.length > 0) {
+        fetchMLPredictions(eqData);
+      }
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMLPredictions = async (equipmentList: Equipment[]) => {
+    setMlPredictionsLoading(true);
+    try {
+      const equipment_ids = equipmentList.map(eq => eq.id);
+      console.log('[Dashboard] Fetching ML predictions for:', equipment_ids);
+      
+      const mlRes = await fetch("/api/ml-predictions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ equipment_ids }),
+      });
+      
+      if (mlRes.ok) {
+        const predictions = await mlRes.json();
+        console.log('[Dashboard] Received ML predictions:', predictions);
+        
+        // Merge ML predictions into equipment data
+        const updatedEquipment = equipmentList.map(eq => {
+          const prediction = predictions.find((p: any) => p.equipment_id === eq.id);
+          if (prediction) {
+            console.log(`[Dashboard] Updating ${eq.id}: health ${eq.health_score} → ${prediction.health_score}`);
+            // Update health score AND status from ML prediction
+            const mlStatus = 
+              prediction.severity === 'critical' ? 'Critical' :
+              prediction.severity === 'high' || prediction.severity === 'medium' ? 'Warning' :
+              'Healthy';
+            
+            return {
+              ...eq,
+              health_score: prediction.health_score,
+              status: mlStatus,
+              // Store ML metadata for display
+              ml_prediction: {
+                rul_hours: prediction.rul_hours,
+                rul_days: prediction.rul_days,
+                severity: prediction.severity,
+                failure_mode: prediction.failure_mode,
+                recommendation: prediction.recommendation,
+                source: prediction.source,
+                degradation_pct: prediction.degradation_pct,
+                confidence: prediction.confidence,
+              },
+            };
+          }
+          console.log(`[Dashboard] No prediction found for ${eq.id}, keeping original health: ${eq.health_score || 95}`);
+          // Ensure health_score is never 0 or undefined
+          return {
+            ...eq,
+            health_score: eq.health_score || 95,
+          };
+        });
+        
+        console.log('[Dashboard] Updated equipment:', updatedEquipment);
+        setEquipment(updatedEquipment);
+      } else {
+        console.error('[Dashboard] ML predictions API returned:', mlRes.status);
+      }
+    } catch (err) {
+      console.error("Failed to fetch ML predictions:", err);
+    } finally {
+      setMlPredictionsLoading(false);
     }
   };
 
@@ -184,6 +254,14 @@ export default function Dashboard() {
               ML Engine: {mlStatus}
             </span>
           </div>
+          {mlPredictionsLoading && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-500/20 bg-blue-500/5">
+              <Activity className="h-3.5 w-3.5 text-blue-500 animate-pulse" />
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-500">
+                Updating Health Scores
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[10px] font-bold font-mono text-emerald-650 dark:text-emerald-400 uppercase tracking-widest">
@@ -320,7 +398,7 @@ export default function Dashboard() {
                           {eq.id?.slice(0, 12)}
                         </p>
                       </div>
-                      <HealthGauge score={eq.health_score} size={56} />
+                      <HealthGauge score={eq.health_score || 95} size={56} />
                     </div>
 
                     {/* Status badge + trend */}
