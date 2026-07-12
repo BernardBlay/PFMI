@@ -1,9 +1,22 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
+import { isAuthenticated } from "@/lib/auth";
 
 export default function Hero() {
+  const router = useRouter();
+
+  const handleOCRClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated()) {
+      router.push("/login");
+    } else {
+      router.push("/ocr-upload");
+    }
+  };
+
   return (
     <section className="relative border-b border-border-mute bg-background/30 py-20 md:py-32 overflow-hidden">
       {/* Floating gradient orbs */}
@@ -47,13 +60,13 @@ export default function Hero() {
             Launch Dashboard
             <ArrowRight className="h-4 w-4" />
           </Link>
-          <Link
-            href="/ocr-upload"
+          <button
+            onClick={handleOCRClick}
             className="flex items-center justify-center rounded border border-border-mute bg-surface px-6 py-3 text-sm font-medium text-text-muted transition-all hover:bg-background hover:text-foreground hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer"
           >
             <Play className="h-3.5 w-3.5 mr-2" />
             Ingest Logs (OCR)
-          </Link>
+          </button>
         </div>
 
         {/* Metrics Bar */}
