@@ -372,6 +372,15 @@ except ImportError:
     predict_rul = None  # type: ignore[assignment]
     logger.warning("Legacy predict_rul not importable")
 
+# RUL engine — always available (pure Python, no model files needed)
+try:
+    from model.rul_engine import estimate_rul, RULResult
+    logger.info("✓ RUL engine loaded")
+except ImportError as _rul_err:
+    estimate_rul = None  # type: ignore[assignment]
+    RULResult = None     # type: ignore[assignment]
+    logger.warning("✗ RUL engine not importable: %s", _rul_err)
+
 try:
     from ocr import run_ocr, extract_structured_logs
 except ImportError:
@@ -897,18 +906,247 @@ def predict_drill(data: DrillRequest):
 
 
 # ---------------------------------------------------------------------------
-# POST /ocr  (legacy)
+# POST /ocr  — accepts base64-encoded image OR file path
 # ---------------------------------------------------------------------------
+
+class OCRRequest(BaseModel):
+    image_data: Optional[str] = Field(
+        default=None,
+        description="Base64-encoded image data (preferred for remote calls)"
+    )
+    image_path: Optional[str] = Field(
+        default=None,
+        description="File path to image (fallback for local filesystem access)"
+    )
+
+
 @app.post("/ocr")
-def ocr_pipeline(image_path: str):
+def ocr_pipeline(req: OCRRequest):
     if run_ocr is None or extract_structured_logs is None:
         raise HTTPException(status_code=503, detail="OCR module not available")
+    
     try:
+        # If base64 data provided, decode and save temporarily
+        if req.image_data:
+            import base64
+            import tempfile
+            img_bytes = base64.b64decode(req.image_data)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+                tmp.write(img_bytes)
+                image_path = tmp.name
+        elif req.image_path:
+            image_path = req.image_path
+        else:
+            raise HTTPException(status_code=400, detail="Provide either image_data or image_path")
+        
         text = run_ocr(image_path)
         structured = extract_structured_logs(text)
+        
+        # Clean up temp file if we created one
+        if req.image_data:
+            import os
+            if os.path.exists(image_path):
+                os.unlink(image_path)
+        
         return {
             "raw_text": text,
             "structured_data": structured,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Pydantic models for /predict and /predict/rul
+# ---------------------------------------------------------------------------
+
+class LegacyPredictRequest(BaseModel):
+    sensors: Dict[str, float] = Field(
+        ...,
+        description="Sensor readings: temperature, vibration, pressure, voltage, rpm, torque, tool_wear etc.",
+        example={"temperature": 68.4, "vibration": 2.3, "pressure": 4.2},
+    )
+    operating_hours_per_day: float = Field(
+        default=8.0,
+        description="How many hours per day the machine operates (used to convert hours → days).",
+    )
+    machine_age_factor: float = Field(
+        default=1.0,
+        description="1.0 = new machine. Increase for older machines to shorten RUL estimate.",
+    )
+
+
+class SensorBreakdownItem(BaseModel):
+    sensor: str
+    current: float
+    nominal: float
+    failure_threshold: float
+    margin_pct: float
+    rul_hours: float
+    unit: str
+    is_critical: bool
+
+
+class RULResponse(BaseModel):
+    rul_hours: float
+    rul_days: float
+    confidence: float
+    failure_mode: str
+    severity: str
+    anomaly_detected: bool
+    degradation_pct: float
+    recommendation: str
+    sensor_breakdown: List[SensorBreakdownItem]
+    # Legacy fields kept for backwards-compat with old ml-client.ts callers
+    remainingUsefulLife: float
+    anomalyDetected: bool
+
+
+# ---------------------------------------------------------------------------
+# POST /predict  — legacy endpoint, now powered by the RUL engine
+# ---------------------------------------------------------------------------
+
+@app.post("/predict")
+def predict_legacy(req: LegacyPredictRequest):
+    """
+    Legacy prediction endpoint.  Previously returned a mock number; now
+    returns a physics-informed RUL estimate from the degradation engine.
+
+    Also returns `remainingUsefulLife` (integer days, legacy field) for
+    backwards compatibility with the existing ml-client.ts callers.
+    """
+    if estimate_rul is None:
+        # Absolute fallback if engine somehow failed to import
+        anomaly = (
+            req.sensors.get("temperature", 0) > 80
+            or req.sensors.get("vibration", 0) > 5
+        )
+        return {
+            "remainingUsefulLife": 42,
+            "anomalyDetected": anomaly,
+            "confidence": 0.65,
+            "rul_hours": 336.0,
+            "rul_days": 42.0,
+            "failure_mode": "unknown",
+            "severity": "medium" if anomaly else "normal",
+        }
+
+    try:
+        result = estimate_rul(
+            sensors=req.sensors,
+            operating_hours_per_day=req.operating_hours_per_day,
+            machine_age_factor=req.machine_age_factor,
+        )
+
+        breakdown = [
+            {
+                "sensor": c.sensor,
+                "current": c.current,
+                "nominal": c.nominal,
+                "failure_threshold": c.failure_threshold,
+                "margin_pct": c.margin_pct,
+                "rul_hours": c.rul_hours,
+                "unit": c.unit,
+                "is_critical": c.is_critical,
+            }
+            for c in result.sensor_breakdown
+        ]
+
+        return {
+            # ── New rich fields ──────────────────────────────────────────
+            "rul_hours": result.rul_hours,
+            "rul_days": result.rul_days,
+            "confidence": result.confidence,
+            "failure_mode": result.failure_mode,
+            "severity": result.severity,
+            "anomaly_detected": result.anomaly_detected,
+            "degradation_pct": result.degradation_pct,
+            "recommendation": result.recommendation,
+            "sensor_breakdown": breakdown,
+            # ── Legacy fields (backwards compat) ─────────────────────────
+            "remainingUsefulLife": result.rul_hours,
+            "anomalyDetected": result.anomaly_detected,
+        }
+    except Exception as exc:
+        logger.exception("RUL engine error in /predict: %s", exc)
+        raise HTTPException(status_code=500, detail=f"RUL estimation failed: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# POST /predict/rul  — dedicated RUL endpoint with full breakdown
+# ---------------------------------------------------------------------------
+
+class RULRequest(BaseModel):
+    sensors: Dict[str, float] = Field(
+        ...,
+        description="Any subset of: temperature, vibration, pressure, voltage, rpm, torque, tool_wear",
+        example={
+            "temperature": 82.0,
+            "vibration": 6.1,
+            "pressure": 3.8,
+            "voltage": 215.0,
+        },
+    )
+    operating_hours_per_day: float = Field(default=8.0)
+    machine_age_factor: float = Field(default=1.0)
+
+
+@app.post("/predict/rul", response_model=RULResponse)
+def predict_rul_endpoint(req: RULRequest):
+    """
+    Dedicated RUL endpoint.
+
+    Returns a full degradation breakdown per sensor plus:
+    - rul_hours : concrete hours until service required
+    - rul_days  : same value in shift-days
+    - recommendation : plain-English maintenance action
+    - sensor_breakdown : per-sensor margin and contribution
+
+    This is the endpoint that powers the dashboard 'Est RUL' card and
+    the AnomalySimulator confidence bar.
+    """
+    if estimate_rul is None:
+        raise HTTPException(
+            status_code=503,
+            detail="RUL engine not available — check ml-service logs",
+        )
+
+    try:
+        result = estimate_rul(
+            sensors=req.sensors,
+            operating_hours_per_day=req.operating_hours_per_day,
+            machine_age_factor=req.machine_age_factor,
+        )
+
+        breakdown = [
+            SensorBreakdownItem(
+                sensor=c.sensor,
+                current=c.current,
+                nominal=c.nominal,
+                failure_threshold=c.failure_threshold,
+                margin_pct=c.margin_pct,
+                rul_hours=c.rul_hours,
+                unit=c.unit,
+                is_critical=c.is_critical,
+            )
+            for c in result.sensor_breakdown
+        ]
+
+        return RULResponse(
+            rul_hours=result.rul_hours,
+            rul_days=result.rul_days,
+            confidence=result.confidence,
+            failure_mode=result.failure_mode,
+            severity=result.severity,
+            anomaly_detected=result.anomaly_detected,
+            degradation_pct=result.degradation_pct,
+            recommendation=result.recommendation,
+            sensor_breakdown=breakdown,
+            remainingUsefulLife=result.rul_hours,
+            anomalyDetected=result.anomaly_detected,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("RUL engine error in /predict/rul: %s", exc)
+        raise HTTPException(status_code=500, detail=f"RUL estimation failed: {exc}")

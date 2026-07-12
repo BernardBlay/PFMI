@@ -1,0 +1,60 @@
+# PFMI ML Prediction Service - systemd unit
+# ==========================================
+# Runs ML predictions as a systemd service
+#
+# Installation (Linux with systemd):
+# -----------------------------------
+# 1. Copy this file to systemd directory:
+#    sudo cp scheduler/systemd.service /etc/systemd/system/pfmi-predictions.service
+#
+# 2. Copy the timer file:
+#    sudo cp scheduler/systemd.timer /etc/systemd/system/pfmi-predictions.timer
+#
+# 3. Update paths and environment variables in this file
+#
+# 4. Reload systemd:
+#    sudo systemctl daemon-reload
+#
+# 5. Enable and start the timer:
+#    sudo systemctl enable pfmi-predictions.timer
+#    sudo systemctl start pfmi-predictions.timer
+#
+# 6. Check status:
+#    sudo systemctl status pfmi-predictions.timer
+#    sudo systemctl list-timers pfmi-predictions.timer
+#
+# 7. View logs:
+#    sudo journalctl -u pfmi-predictions.service -f
+
+[Unit]
+Description=PFMI ML Prediction Pipeline
+After=network.target
+Requires=network.target
+
+[Service]
+Type=oneshot
+User=pfmi
+Group=pfmi
+WorkingDirectory=/opt/PFMI/apps/ml-service
+ExecStart=/usr/bin/python3 /opt/PFMI/apps/ml-service/predict_to_db.py
+
+# Environment variables
+Environment="SUPABASE_URL=https://your-project.supabase.co"
+Environment="SUPABASE_ANON_KEY=your-anon-key-here"
+Environment="ML_SERVICE_URL=http://localhost:8000"
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pfmi-predictions
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+# Restart policy
+Restart=on-failure
+RestartSec=60s
+
+[Install]
+WantedBy=multi-user.target

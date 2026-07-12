@@ -51,6 +51,7 @@ export async function supabaseRestRequest(path: string, init: RestInit = {}) {
       {
         method: (requestInit.method || "GET").toUpperCase(),
         headers: normalizedHeaders,
+        timeout: 30000, // 30s timeout
       },
       (res) => {
         const chunks: Buffer[] = [];
@@ -64,17 +65,37 @@ export async function supabaseRestRequest(path: string, init: RestInit = {}) {
             },
           });
 
-          if ((res.statusCode || 500) >= 200 && (res.statusCode || 500) < 300) {
-            resolve(response);
-            return;
-          }
-
-          reject(new Error(responseBody || `Supabase request failed with ${res.statusCode}`));
+          // Always resolve so callers can check response.ok / response.status
+          resolve(response);
+        });
+        res.on("error", (err) => {
+          // Handle response stream errors (ECONNRESET during read)
+          const errorResponse = new Response(JSON.stringify({ error: err.message }), {
+            status: 500,
+            headers: { "content-type": "application/json" },
+          });
+          resolve(errorResponse);
         });
       }
     );
 
-    req.on("error", reject);
+    req.on("error", (err) => {
+      // Handle request errors (connection refused, DNS, etc)
+      const errorResponse = new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      });
+      resolve(errorResponse);
+    });
+
+    req.on("timeout", () => {
+      req.destroy();
+      const errorResponse = new Response(JSON.stringify({ error: "Request timeout" }), {
+        status: 504,
+        headers: { "content-type": "application/json" },
+      });
+      resolve(errorResponse);
+    });
 
     if (body) {
       req.write(body);
